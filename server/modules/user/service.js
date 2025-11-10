@@ -5,6 +5,8 @@ const { errors } = require('../../core')
 const userModel = require('./model')
 const profileModel = require('./profile-model')
 const goalModel = require('./goal-model')
+const recordModel = require('./record-model')
+const healthRecordModel = require('./health-record-model')
 const axios = require('axios')
 const config = require('../../../config')
 
@@ -239,6 +241,182 @@ async function updateUserGoals(openId, goalData) {
   }
 }
 
+/**
+ * 获取用户今日完成情况
+ */
+async function getTodayProgress(openId) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  // 获取今日完成情况
+  const todayExercise = await recordModel.getTodayExerciseTotal(user.id)
+  const todayWater = await recordModel.getTodayWaterTotal(user.id)
+  const todaySteps = await recordModel.getTodayStepsTotal(user.id)
+  
+  // 获取用户目标
+  const goals = await goalModel.findByUserId(user.id)
+  
+  return {
+    exercise: {
+      completed: todayExercise,
+      target: goals?.target_exercise || 30
+    },
+    water: {
+      completed: todayWater,
+      target: goals?.target_water || 8
+    },
+    steps: {
+      completed: todaySteps,
+      target: goals?.target_steps || 10000
+    }
+  }
+}
+
+/**
+ * 快速打卡（添加记录）
+ */
+async function quickCheckIn(openId, type, value) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  if (type === 'exercise') {
+    await recordModel.addExerciseRecord(user.id, parseInt(value))
+  } else if (type === 'water') {
+    await recordModel.addWaterRecord(user.id, parseInt(value))
+  } else if (type === 'steps') {
+    await recordModel.addStepsRecord(user.id, parseInt(value))
+  } else {
+    throw new BusinessError('不支持的打卡类型')
+  }
+  
+  // 返回更新后的今日完成情况
+  return await getTodayProgress(openId)
+}
+
+/**
+ * 获取用户健康记录列表
+ */
+async function getHealthRecords(openId, options = {}) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  const records = await healthRecordModel.findByUserId(user.id, options)
+  
+  // 格式化返回数据
+  return records.map(record => ({
+    id: record.id,
+    type: record.record_type,
+    value: parseFloat(record.value),
+    unit: record.unit || '',
+    systolic: record.systolic || null,
+    diastolic: record.diastolic || null,
+    date: record.record_date,
+    time: record.record_time || '',
+    note: record.note || '',
+    createdAt: record.created_at
+  }))
+}
+
+/**
+ * 添加健康记录
+ */
+async function addHealthRecord(openId, recordData) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  if (!recordData.recordType || recordData.value === undefined) {
+    throw new BusinessError('记录类型和数值不能为空')
+  }
+  
+  // 根据记录类型设置单位
+  const unitMap = {
+    '血压': 'mmHg',
+    '心率': 'bpm',
+    '体重': 'kg',
+    '血糖': 'mmol/L',
+    '体温': '℃'
+  }
+  
+  const insertData = {
+    userId: user.id,
+    recordType: recordData.recordType,
+    value: parseFloat(recordData.value),
+    unit: recordData.unit || unitMap[recordData.recordType] || '',
+    systolic: recordData.systolic || null,
+    diastolic: recordData.diastolic || null,
+    recordDate: recordData.recordDate || new Date().toISOString().split('T')[0],
+    recordTime: recordData.recordTime || new Date().toTimeString().split(' ')[0],
+    note: recordData.note || null
+  }
+  
+  const newRecord = await healthRecordModel.create(insertData)
+  
+  return {
+    id: newRecord.id,
+    type: newRecord.record_type,
+    value: parseFloat(newRecord.value),
+    unit: newRecord.unit || '',
+    date: newRecord.record_date,
+    time: newRecord.record_time || '',
+    note: newRecord.note || ''
+  }
+}
+
+/**
+ * 删除健康记录
+ */
+async function deleteHealthRecord(openId, recordId) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  if (!recordId) {
+    throw new BusinessError('记录ID不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  // 验证记录是否属于该用户
+  const record = await healthRecordModel.findById(recordId)
+  if (!record) {
+    throw new BusinessError('记录不存在')
+  }
+  
+  if (record.user_id !== user.id) {
+    throw new BusinessError('无权删除该记录')
+  }
+  
+  await healthRecordModel.deleteById(recordId, user.id)
+  return true
+}
+
 module.exports = {
   getOpenIdByCode,
   getUserInfoByOpenId,
@@ -246,5 +424,10 @@ module.exports = {
   getUserProfile,
   updateUserProfile,
   getUserGoals,
-  updateUserGoals
+  updateUserGoals,
+  getTodayProgress,
+  quickCheckIn,
+  getHealthRecords,
+  addHealthRecord,
+  deleteHealthRecord
 }

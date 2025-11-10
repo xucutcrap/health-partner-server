@@ -134,4 +134,87 @@ router.post('/goals', handle(async (ctx) => {
   return success(result)
 }))
 
+/**
+ * 获取今日完成情况
+ * GET /api/v1/user/today-progress?openId=xxx
+ */
+router.get('/today-progress', handle(async (ctx) => {
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await userService.getTodayProgress(openId)
+  return success(result)
+}))
+
+/**
+ * 快速打卡
+ * POST /api/v1/user/check-in
+ */
+router.post('/check-in', handle(async (ctx) => {
+  const { openId, type, value } = ctx.request.body
+  if (!openId || !type || value === undefined) {
+    return ctx.throw(400, '参数不完整')
+  }
+  const result = await userService.quickCheckIn(openId, type, value)
+  return success(result)
+}))
+
+/**
+ * 获取健康记录列表
+ * GET /api/v1/user/health-records?openId=xxx&recordType=xxx&limit=xxx
+ */
+router.get('/health-records', handle(async (ctx) => {
+  const { openId, recordType, limit, offset } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  
+  const options = {}
+  if (recordType) options.recordType = recordType
+  if (limit) options.limit = parseInt(limit)
+  if (offset) options.offset = parseInt(offset)
+  
+  const result = await userService.getHealthRecords(openId, options)
+  return success(result)
+}))
+
+/**
+ * 添加健康记录
+ * POST /api/v1/user/health-records
+ */
+router.post('/health-records', handle(async (ctx) => {
+  const { openId, recordType, value, unit, systolic, diastolic, recordDate, recordTime, note } = ctx.request.body
+  if (!openId || !recordType || value === undefined) {
+    return ctx.throw(400, '参数不完整')
+  }
+  
+  const result = await userService.addHealthRecord(openId, {
+    recordType,
+    value,
+    unit,
+    systolic,
+    diastolic,
+    recordDate,
+    recordTime,
+    note
+  })
+  return success(result)
+}))
+
+/**
+ * 删除健康记录
+ * DELETE /api/v1/user/health-records/:id?openId=xxx
+ */
+router.delete('/health-records/:id', handle(async (ctx) => {
+  const { id } = ctx.params
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  
+  await userService.deleteHealthRecord(openId, id)
+  return success(null, '删除成功')
+}))
+
 module.exports = router
