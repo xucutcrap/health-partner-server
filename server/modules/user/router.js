@@ -121,7 +121,7 @@ router.get('/goals', handle(async (ctx) => {
  * POST /api/v1/user/goals
  */
 router.post('/goals', handle(async (ctx) => {
-  const { openId, targetWeight, targetExercise, targetWater, targetSteps } = ctx.request.body
+  const { openId, targetWeight, targetExercise, targetWater, targetSteps, targetCalories, targetDate } = ctx.request.body
   if (!openId) {
     return ctx.throw(400, 'openId 不能为空')
   }
@@ -129,7 +129,9 @@ router.post('/goals', handle(async (ctx) => {
     targetWeight,
     targetExercise,
     targetWater,
-    targetSteps
+    targetSteps,
+    targetCalories,
+    targetDate
   })
   return success(result)
 }))
@@ -215,6 +217,19 @@ router.delete('/health-records/:id', handle(async (ctx) => {
   
   await userService.deleteHealthRecord(openId, id)
   return success(null, '删除成功')
+}))
+
+/**
+ * 获取目标设置页面数据（包括计算值）
+ * GET /api/v1/user/goal-page-data?openId=xxx
+ */
+router.get('/goal-page-data', handle(async (ctx) => {
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await userService.getGoalPageData(openId)
+  return success(result)
 }))
 
 module.exports = router

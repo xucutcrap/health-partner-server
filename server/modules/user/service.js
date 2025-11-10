@@ -195,12 +195,23 @@ async function getUserGoals(openId) {
   
   const goals = await goalModel.findByUserId(user.id)
   
+  // 格式化日期为 YYYY-MM-DD
+  let targetDate = null
+  if (goals?.target_date) {
+    const date = new Date(goals.target_date)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    targetDate = `${year}-${month}-${day}`
+  }
+  
   // 返回格式化的目标数据
   return {
     targetWeight: goals?.target_weight || null,
     targetExercise: goals?.target_exercise || 30,
     targetWater: goals?.target_water || 8,
-    targetSteps: goals?.target_steps || 10000
+    targetSteps: goals?.target_steps || 10000,
+    targetDate: targetDate
   }
 }
 
@@ -230,14 +241,32 @@ async function updateUserGoals(openId, goalData) {
   if (goalData.targetSteps !== undefined) {
     updateData.target_steps = goalData.targetSteps
   }
+  if (goalData.targetCalories !== undefined) {
+    updateData.target_calories = goalData.targetCalories
+  }
+  if (goalData.targetDate !== undefined) {
+    updateData.target_date = goalData.targetDate || null
+  }
   
   const goals = await goalModel.createOrUpdateByUserId(user.id, updateData)
+  
+  // 格式化日期为 YYYY-MM-DD
+  let targetDate = null
+  if (goals.target_date) {
+    const date = new Date(goals.target_date)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    targetDate = `${year}-${month}-${day}`
+  }
   
   return {
     targetWeight: goals.target_weight || null,
     targetExercise: goals.target_exercise || 30,
     targetWater: goals.target_water || 8,
-    targetSteps: goals.target_steps || 10000
+    targetSteps: goals.target_steps || 10000,
+    targetCalories: goals.target_calories || 2000,
+    targetDate: targetDate
   }
 }
 
@@ -417,6 +446,119 @@ async function deleteHealthRecord(openId, recordId) {
   return true
 }
 
+/**
+ * 计算理想体重范围（基于BMI 18.5-23.9）
+ */
+function calculateIdealWeightRange(height, gender) {
+  const heightInMeters = height / 100
+  // 理想 BMI 范围 18.5-23.9（中国标准）
+  const minWeight = 18.5 * heightInMeters * heightInMeters
+  const maxWeight = 23.9 * heightInMeters * heightInMeters
+  
+  return {
+    min: parseFloat(minWeight.toFixed(1)),
+    max: parseFloat(maxWeight.toFixed(1))
+  }
+}
+
+/**
+ * 计算基础代谢率 (BMR) - 使用 Mifflin-St Jeor 公式（更准确）
+ */
+function calculateBMR(weight, height, age, gender) {
+  // Mifflin-St Jeor 公式（1990年提出，比Harris-Benedict更准确）
+  // 男性: BMR = 10 × 体重(kg) + 6.25 × 身高(cm) - 5 × 年龄(岁) + 5
+  // 女性: BMR = 10 × 体重(kg) + 6.25 × 身高(cm) - 5 × 年龄(岁) - 161
+  let bmr = 0
+  
+  if (gender === '男') {
+    bmr = 10 * weight + 6.25 * height - 5 * age + 5
+  } else {
+    bmr = 10 * weight + 6.25 * height - 5 * age - 161
+  }
+  
+  return Math.round(bmr)
+}
+
+/**
+ * 计算每日热量需求 (TDEE) - 总能量消耗
+ */
+function calculateTDEE(bmr, activityLevel = 1.375) {
+  // 活动系数（基于每周运动频率）：
+  // 1.2 - 久坐不动（很少或没有运动）
+  // 1.375 - 轻度活动（每周1-3天轻度运动）
+  // 1.55 - 中度活动（每周3-5天中等强度运动）
+  // 1.725 - 高度活动（每周6-7天高强度运动）
+  // 1.9 - 专业运动员（每天高强度运动+体力工作）
+  
+  return Math.round(bmr * activityLevel)
+}
+
+/**
+ * 获取目标设置页面的完整数据（包括计算值）
+ */
+async function getGoalPageData(openId) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  // 获取用户健康档案
+  const profile = await profileModel.findByUserId(user.id)
+  if (!profile || !profile.height || !profile.weight) {
+    throw new BusinessError('请先完善健康档案信息')
+  }
+  
+  // 获取用户目标
+  const goals = await goalModel.findByUserId(user.id)
+  
+  // 计算BMI
+  const bmi = profile.weight / ((profile.height / 100) ** 2)
+  
+  // 计算理想体重范围
+  const idealWeightRange = calculateIdealWeightRange(profile.height, profile.gender)
+  
+  // 计算基础代谢率
+  const bmr = calculateBMR(profile.weight, profile.height, profile.age || 30, profile.gender)
+  
+  // 计算每日热量需求（默认轻度活动）
+  const tdee = calculateTDEE(bmr, 1.375)
+  
+  // 格式化日期为 YYYY-MM-DD
+  let targetDate = null
+  if (goals?.target_date) {
+    const date = new Date(goals.target_date)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    targetDate = `${year}-${month}-${day}`
+  }
+  
+  return {
+    profile: {
+      weight: parseFloat(profile.weight),
+      height: parseFloat(profile.height),
+      age: profile.age || 0,
+      gender: profile.gender || '男',
+      bmi: parseFloat(bmi.toFixed(1))
+    },
+    idealWeightRange,
+    bmr,
+    tdee,
+    goals: {
+      targetWeight: goals?.target_weight || null,
+      targetExercise: goals?.target_exercise || 30,
+      targetWater: goals?.target_water || 8,
+      targetCalories: goals?.target_calories || tdee,
+      targetSteps: goals?.target_steps || 10000,
+      targetDate: targetDate
+    }
+  }
+}
+
 module.exports = {
   getOpenIdByCode,
   getUserInfoByOpenId,
@@ -429,5 +571,6 @@ module.exports = {
   quickCheckIn,
   getHealthRecords,
   addHealthRecord,
-  deleteHealthRecord
+  deleteHealthRecord,
+  getGoalPageData
 }

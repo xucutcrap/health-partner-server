@@ -41,6 +41,14 @@ async function createOrUpdateByUserId(userId, goalData) {
       updateFields.push('target_steps = ?')
       updateValues.push(goalData.target_steps)
     }
+    if (goalData.target_calories !== undefined) {
+      updateFields.push('target_calories = ?')
+      updateValues.push(goalData.target_calories)
+    }
+    if (goalData.target_date !== undefined) {
+      updateFields.push('target_date = ?')
+      updateValues.push(goalData.target_date || null)
+    }
     
     if (updateFields.length > 0) {
       updateValues.push(userId)
@@ -57,7 +65,9 @@ async function createOrUpdateByUserId(userId, goalData) {
       target_weight: goalData.target_weight || null,
       target_exercise: goalData.target_exercise || 30,
       target_water: goalData.target_water || 8,
-      target_steps: goalData.target_steps || 10000
+      target_steps: goalData.target_steps || 10000,
+      target_calories: goalData.target_calories || 2000,
+      target_date: goalData.target_date || null
     }
     await goalDb.create(insertData)
     return await findByUserId(userId)
