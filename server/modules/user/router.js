@@ -103,4 +103,35 @@ router.post('/profile', handle(async (ctx) => {
   return success(result)
 }))
 
+/**
+ * 获取用户目标
+ * GET /api/v1/user/goals?openId=xxx
+ */
+router.get('/goals', handle(async (ctx) => {
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await userService.getUserGoals(openId)
+  return success(result)
+}))
+
+/**
+ * 更新用户目标
+ * POST /api/v1/user/goals
+ */
+router.post('/goals', handle(async (ctx) => {
+  const { openId, targetWeight, targetExercise, targetWater, targetSteps } = ctx.request.body
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await userService.updateUserGoals(openId, {
+    targetWeight,
+    targetExercise,
+    targetWater,
+    targetSteps
+  })
+  return success(result)
+}))
+
 module.exports = router

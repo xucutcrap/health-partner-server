@@ -4,6 +4,7 @@
 const { errors } = require('../../core')
 const userModel = require('./model')
 const profileModel = require('./profile-model')
+const goalModel = require('./goal-model')
 const axios = require('axios')
 const config = require('../../../config')
 
@@ -177,10 +178,73 @@ async function updateUserProfile(openId, profileData) {
   }
 }
 
+/**
+ * 根据 openId 获取用户目标
+ */
+async function getUserGoals(openId) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  const goals = await goalModel.findByUserId(user.id)
+  
+  // 返回格式化的目标数据
+  return {
+    targetWeight: goals?.target_weight || null,
+    targetExercise: goals?.target_exercise || 30,
+    targetWater: goals?.target_water || 8,
+    targetSteps: goals?.target_steps || 10000
+  }
+}
+
+/**
+ * 更新用户目标
+ */
+async function updateUserGoals(openId, goalData) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  const updateData = {}
+  if (goalData.targetWeight !== undefined) {
+    updateData.target_weight = goalData.targetWeight
+  }
+  if (goalData.targetExercise !== undefined) {
+    updateData.target_exercise = goalData.targetExercise
+  }
+  if (goalData.targetWater !== undefined) {
+    updateData.target_water = goalData.targetWater
+  }
+  if (goalData.targetSteps !== undefined) {
+    updateData.target_steps = goalData.targetSteps
+  }
+  
+  const goals = await goalModel.createOrUpdateByUserId(user.id, updateData)
+  
+  return {
+    targetWeight: goals.target_weight || null,
+    targetExercise: goals.target_exercise || 30,
+    targetWater: goals.target_water || 8,
+    targetSteps: goals.target_steps || 10000
+  }
+}
+
 module.exports = {
   getOpenIdByCode,
   getUserInfoByOpenId,
   updateUserInfo,
   getUserProfile,
-  updateUserProfile
+  updateUserProfile,
+  getUserGoals,
+  updateUserGoals
 }

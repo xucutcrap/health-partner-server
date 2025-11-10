@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS `user_goals` (
   `target_exercise` int(11) DEFAULT 30 COMMENT '目标运动时长(分钟)',
   `target_water` int(11) DEFAULT 8 COMMENT '目标饮水量(杯)',
   `target_weight` decimal(5,2) DEFAULT NULL COMMENT '目标体重(kg)',
+  `target_steps` int(11) DEFAULT 10000 COMMENT '目标步数(步)',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
