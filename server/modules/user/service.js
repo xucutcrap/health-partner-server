@@ -38,13 +38,37 @@ async function getOpenIdByCode(code) {
     return {
       openId: openid,
       userId: user.id,
-      sessionKey: session_key
+      sessionKey: session_key,
+      nickname: user.nickname || null,
+      avatarUrl: user.avatar_url || null
     }
   } catch (error) {
     if (error.name === 'BusinessError') {
       throw error
     }
     throw new BusinessError('获取 openId 失败：' + error.message)
+  }
+}
+
+/**
+ * 根据 openId 获取用户信息
+ */
+async function getUserInfoByOpenId(openId) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  
+  if (!user) {
+    return null
+  }
+  
+  return {
+    id: user.id,
+    openId: user.openid,
+    nickname: user.nickname,
+    avatarUrl: user.avatar_url
   }
 }
 
@@ -80,5 +104,6 @@ async function updateUserInfo(openId, userInfo) {
 
 module.exports = {
   getOpenIdByCode,
+  getUserInfoByOpenId,
   updateUserInfo
 }

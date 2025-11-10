@@ -21,6 +21,19 @@ router.post('/login', handle(async (ctx) => {
 }))
 
 /**
+ * 根据 openId 获取用户信息
+ * GET /api/v1/user/info?openId=xxx
+ */
+router.get('/info', handle(async (ctx) => {
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await userService.getUserInfoByOpenId(openId)
+  return success(result)
+}))
+
+/**
  * 更新用户信息（昵称、头像）
  * POST /api/v1/user/update
  */
