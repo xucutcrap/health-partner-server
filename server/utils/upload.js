@@ -69,7 +69,15 @@ function uploadPicture( ctx, options) {
 
       file.on('end', function() {
         console.log('File-end [' + fieldname + '] Finished')
+        // 返回文件访问路径（相对于 static 目录）
+        const staticDir = path.join(__dirname, '/../../static')
+        const relativePath = path.relative(staticDir, _uploadFilePath).replace(/\\/g, '/') // Windows 路径转 Unix 风格
         result.success = true
+        result.data = {
+          url: '/output/upload/' + pictureType + '/' + UtilDatetime.parseStampToFormat(null, 'YYYY/MM/DD') + '/' + pictureName,
+          path: relativePath,
+          filename: pictureName
+        }
         resolve(result)
       })
     })

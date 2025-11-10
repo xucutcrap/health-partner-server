@@ -34,6 +34,28 @@ router.get('/info', handle(async (ctx) => {
 }))
 
 /**
+ * 上传头像
+ * POST /api/v1/user/upload-avatar
+ */
+router.post('/upload-avatar', handle(async (ctx) => {
+  const uploadUtil = require('../../utils/upload')
+  const uploadResult = await uploadUtil.uploadPicture(ctx, { pictureType: 'avatar' })
+  
+  if (!uploadResult.success || !uploadResult.data) {
+    return ctx.throw(500, '头像上传失败')
+  }
+  
+  // 返回完整的访问 URL（需要根据实际部署情况配置）
+  const baseUrl = ctx.request.protocol + '://' + ctx.request.host
+  const avatarUrl = baseUrl + uploadResult.data.url
+  
+  return success({
+    avatarUrl: avatarUrl,
+    path: uploadResult.data.path
+  })
+}))
+
+/**
  * 更新用户信息（昵称、头像）
  * POST /api/v1/user/update
  */
@@ -45,6 +67,38 @@ router.post('/update', handle(async (ctx) => {
   const result = await userService.updateUserInfo(openId, {
     nickname,
     avatarUrl
+  })
+  return success(result)
+}))
+
+/**
+ * 获取用户健康档案
+ * GET /api/v1/user/profile?openId=xxx
+ */
+router.get('/profile', handle(async (ctx) => {
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await userService.getUserProfile(openId)
+  return success(result)
+}))
+
+/**
+ * 更新用户健康档案
+ * POST /api/v1/user/profile
+ */
+router.post('/profile', handle(async (ctx) => {
+  const { openId, height, weight, age, gender, bodyFat } = ctx.request.body
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await userService.updateUserProfile(openId, {
+    height,
+    weight,
+    age,
+    gender,
+    bodyFat
   })
   return success(result)
 }))

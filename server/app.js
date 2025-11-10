@@ -2,6 +2,8 @@ require('dotenv').config();
 const Koa = require('koa')
 const bodyParser = require('koa-bodyparser')
 const koaLogger = require('koa-logger')
+const serve = require('koa-static')
+const path = require('path')
 
 const config = require('./../config')
 const routers = require('./routers/index')
@@ -23,6 +25,9 @@ app.use(koaLogger())
 
 // 配置ctx.body解析中间件
 app.use(bodyParser())
+
+// 静态文件服务（上传的文件）
+app.use(serve(path.join(__dirname, '../static')))
 
 // 统一响应格式中间件
 app.use(Middleware.responseFormatter)
