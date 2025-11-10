@@ -1,5 +1,5 @@
 /**
- * 函数式用户模块入口
+ * 用户模块入口
  */
 
 const router = require('./router')

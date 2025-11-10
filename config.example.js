@@ -2,16 +2,17 @@ const config = {
   port: 3000,
   jwtSecret: process.env.JWT_SECRET || 'your-secret-key',
   database: {
-    DATABASE: 'yoga_platform',
+    DATABASE: 'database',
     USERNAME: 'root',
-    PASSWORD: '18370263_Root',
+    PASSWORD: 'your-database-password',
     PORT: '3306',
     HOST: 'localhost'
   },
   wechat: {
-    appId: 'wxa3f7a06bb04bbf11',
-    appSecret: '090d93bdada81b72cc8df609608a3399'
+    appId: 'your-wechat-appid',
+    appSecret: 'your-wechat-appsecret'
   }
 }
 
 module.exports = config
+
