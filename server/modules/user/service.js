@@ -7,6 +7,7 @@ const profileModel = require('./profile-model')
 const goalModel = require('./goal-model')
 const recordModel = require('./record-model')
 const healthRecordModel = require('./health-record-model')
+const exerciseModel = require('./exercise-model')
 const axios = require('axios')
 const config = require('../../../config')
 
@@ -211,6 +212,7 @@ async function getUserGoals(openId) {
     targetExercise: goals?.target_exercise || 30,
     targetWater: goals?.target_water || 8,
     targetSteps: goals?.target_steps || 10000,
+    targetCalories: goals?.target_calories || null,
     targetDate: targetDate
   }
 }
@@ -559,6 +561,198 @@ async function getGoalPageData(openId) {
   }
 }
 
+/**
+ * 根据运动类型和时长计算卡路里
+ * 不同运动类型的卡路里消耗（每分钟）：
+ * - 跑步：约 11 卡/分钟
+ * - 游泳：约 13.5 卡/分钟
+ * - 骑行：约 9 卡/分钟
+ * - 瑜伽：约 4 卡/分钟
+ * - 力量训练：约 6 卡/分钟
+ * - 跳绳：约 11 卡/分钟
+ */
+function calculateExerciseCalories(exerciseType, duration, distance = null) {
+  const caloriesPerMinute = {
+    '跑步': 11,
+    '游泳': 13.5,
+    '骑行': 9,
+    '瑜伽': 4,
+    '力量训练': 6,
+    '跳绳': 11
+  }
+  
+  const baseCalories = caloriesPerMinute[exerciseType] || 8
+  let calories = baseCalories * duration
+  
+  // 如果有距离，可以基于距离进行微调（可选）
+  // 例如：跑步每公里约消耗 60-70 卡，骑行每公里约消耗 30-40 卡
+  if (distance && distance > 0) {
+    if (exerciseType === '跑步') {
+      // 跑步：每公里约 65 卡
+      calories = Math.max(calories, distance * 65)
+    } else if (exerciseType === '骑行') {
+      // 骑行：每公里约 35 卡
+      calories = Math.max(calories, distance * 35)
+    }
+  }
+  
+  return Math.round(calories)
+}
+
+/**
+ * 判断运动类型是否需要距离
+ */
+function needsDistance(exerciseType) {
+  return ['跑步', '骑行'].includes(exerciseType)
+}
+
+/**
+ * 获取运动记录列表
+ */
+async function getExerciseRecords(openId, options = {}) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  const records = await exerciseModel.findByUserId(user.id, options)
+  
+  // 格式化返回数据
+  return records.map(record => ({
+    id: record.id,
+    exerciseType: record.exercise_type,
+    duration: record.duration,
+    calories: record.calories,
+    distance: record.distance ? parseFloat(record.distance) : null,
+    recordDate: record.record_date,
+    createdAt: record.created_at
+  }))
+}
+
+/**
+ * 获取今日运动统计
+ */
+async function getTodayExerciseStats(openId) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  const stats = await exerciseModel.getTodayStats(user.id)
+  
+  return {
+    totalDuration: stats.totalDuration || 0,
+    totalCalories: stats.totalCalories || 0,
+    totalDistance: stats.totalDistance ? parseFloat(stats.totalDistance) : 0
+  }
+}
+
+/**
+ * 获取本周运动记录
+ */
+async function getWeekExerciseRecords(openId) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  const records = await exerciseModel.getWeekRecords(user.id)
+  
+  // 格式化返回数据
+  return records.map(record => ({
+    id: record.id,
+    exerciseType: record.exercise_type,
+    duration: record.duration,
+    calories: record.calories,
+    distance: record.distance ? parseFloat(record.distance) : null,
+    recordDate: record.record_date,
+    createdAt: record.created_at
+  }))
+}
+
+/**
+ * 添加运动记录
+ */
+async function addExerciseRecord(openId, recordData) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const { exerciseType, duration, distance } = recordData
+  
+  if (!exerciseType || !duration) {
+    throw new BusinessError('运动类型和时长不能为空')
+  }
+  
+  // 验证距离（如果需要）
+  if (needsDistance(exerciseType) && (!distance || distance <= 0)) {
+    throw new BusinessError(`${exerciseType}需要填写距离`)
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  // 自动计算卡路里
+  const calories = calculateExerciseCalories(exerciseType, duration, distance)
+  
+  const result = await exerciseModel.create({
+    userId: user.id,
+    exerciseType,
+    duration: parseInt(duration),
+    calories,
+    distance: distance ? parseFloat(distance) : null,
+    recordDate: recordData.recordDate || new Date().toISOString().split('T')[0]
+  })
+  
+  return {
+    id: result.insertId || result.id,
+    exerciseType,
+    duration: parseInt(duration),
+    calories,
+    distance: distance ? parseFloat(distance) : null
+  }
+}
+
+/**
+ * 删除运动记录
+ */
+async function deleteExerciseRecord(openId, recordId) {
+  if (!openId || !recordId) {
+    throw new BusinessError('openId 和 recordId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  const record = await exerciseModel.findById(recordId)
+  if (!record) {
+    throw new BusinessError('记录不存在')
+  }
+  
+  if (record.user_id !== user.id) {
+    throw new BusinessError('无权删除该记录')
+  }
+  
+  await exerciseModel.deleteById(recordId, user.id)
+  return true
+}
+
 module.exports = {
   getOpenIdByCode,
   getUserInfoByOpenId,
@@ -572,5 +766,12 @@ module.exports = {
   getHealthRecords,
   addHealthRecord,
   deleteHealthRecord,
-  getGoalPageData
+  getGoalPageData,
+  getExerciseRecords,
+  getTodayExerciseStats,
+  getWeekExerciseRecords,
+  addExerciseRecord,
+  deleteExerciseRecord,
+  calculateExerciseCalories,
+  needsDistance
 }

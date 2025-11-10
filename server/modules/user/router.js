@@ -232,4 +232,87 @@ router.get('/goal-page-data', handle(async (ctx) => {
   return success(result)
 }))
 
+/**
+ * 获取运动记录列表
+ * GET /api/v1/user/exercise-records?openId=xxx&exerciseType=xxx&startDate=xxx&endDate=xxx
+ */
+router.get('/exercise-records', handle(async (ctx) => {
+  const { openId, exerciseType, startDate, endDate, limit, offset } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  
+  const options = {}
+  if (exerciseType) options.exerciseType = exerciseType
+  if (startDate) options.startDate = startDate
+  if (endDate) options.endDate = endDate
+  if (limit) options.limit = parseInt(limit)
+  if (offset) options.offset = parseInt(offset)
+  
+  const result = await userService.getExerciseRecords(openId, options)
+  return success(result)
+}))
+
+/**
+ * 获取今日运动统计
+ * GET /api/v1/user/exercise-stats?openId=xxx
+ */
+router.get('/exercise-stats', handle(async (ctx) => {
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  
+  const result = await userService.getTodayExerciseStats(openId)
+  return success(result)
+}))
+
+/**
+ * 获取本周运动记录
+ * GET /api/v1/user/exercise-week?openId=xxx
+ */
+router.get('/exercise-week', handle(async (ctx) => {
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  
+  const result = await userService.getWeekExerciseRecords(openId)
+  return success(result)
+}))
+
+/**
+ * 添加运动记录
+ * POST /api/v1/user/exercise-records
+ */
+router.post('/exercise-records', handle(async (ctx) => {
+  const { openId, exerciseType, duration, distance, recordDate } = ctx.request.body
+  if (!openId || !exerciseType || !duration) {
+    return ctx.throw(400, '参数不完整')
+  }
+  
+  const result = await userService.addExerciseRecord(openId, {
+    exerciseType,
+    duration,
+    distance,
+    recordDate
+  })
+  return success(result)
+}))
+
+/**
+ * 删除运动记录
+ * DELETE /api/v1/user/exercise-records/:id?openId=xxx
+ */
+router.delete('/exercise-records/:id', handle(async (ctx) => {
+  const { id } = ctx.params
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  
+  await userService.deleteExerciseRecord(openId, id)
+  return success(null, '删除成功')
+}))
+
 module.exports = router
