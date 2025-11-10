@@ -1,0 +1,40 @@
+{
+  "name": "project",
+  "version": "0.0.1",
+  "description": "a koa2 project",
+  "main": "index.js",
+  "scripts": {
+    "init_sql": "node ./init/index.js",
+    "dev": "nodemon --harmony ./server/app",
+    "start": "node ./server/app.js"
+  },
+  "author": "chenshenhai",
+  "license": "MIT",
+  "dependencies": {
+    "@koa/cors": "^5.0.0",
+    "axios": "^1.7.9",
+    "busboy": "^0.2.14",
+    "co": "^4.6.0",
+    "debug": "^2.6.0",
+    "dotenv": "^16.4.7",
+    "koa": "^2.0.0",
+    "koa-bodyparser": "^3.2.0",
+    "koa-logger": "^3.0.0",
+    "koa-mysql-session": "0.0.2",
+    "koa-router": "^7.0.1",
+    "koa-session-minimal": "^3.0.3",
+    "mysql": "^2.18.1",
+    "node-cache": "^5.1.2",
+    "openai": "^4.87.3",
+    "validator": "^6.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.0"
+  },
+  "engines": {
+    "node": ">= 7.0.0",
+    "npm": ">= 3.0.0"
+  }
+}
