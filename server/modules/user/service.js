@@ -8,6 +8,8 @@ const goalModel = require('./goal-model')
 const recordModel = require('./record-model')
 const healthRecordModel = require('./health-record-model')
 const exerciseModel = require('./exercise-model')
+const dietModel = require('./diet-model')
+const foodService = require('../food/service')
 const axios = require('axios')
 const config = require('../../../config')
 
@@ -753,6 +755,194 @@ async function deleteExerciseRecord(openId, recordId) {
   return true
 }
 
+/**
+ * 获取饮食记录列表
+ */
+async function getDietRecords(openId, options = {}) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  const records = await dietModel.findByUserId(user.id, options)
+  
+  // 获取食物模型以查询图标
+  const foodModel = require('../food/food-model')
+  
+  // 格式化返回数据，关联查询食物图标
+  const formattedRecords = await Promise.all(records.map(async (record) => {
+    // 通过食物名称查找对应的食物图标
+    let foodIcon = '🍽️' // 默认图标
+    try {
+      const food = await foodModel.findByName(record.food_name)
+      if (food && food.icon) {
+        foodIcon = food.icon
+      }
+    } catch (err) {
+      // 如果查找失败，使用默认图标
+      console.log('查找食物图标失败:', err.message)
+    }
+    
+    return {
+      id: record.id,
+      mealType: record.meal_type,
+      foodName: record.food_name,
+      foodIcon: foodIcon,
+      calories: record.calories,
+      protein: parseFloat(record.protein || 0),
+      carbs: parseFloat(record.carbs || 0),
+      fat: parseFloat(record.fat || 0),
+      fiber: parseFloat(record.fiber || 0),
+      recordDate: record.record_date,
+      createdAt: record.created_at
+    }
+  }))
+  
+  return formattedRecords
+}
+
+/**
+ * 添加饮食记录（支持自动计算卡路里）
+ */
+async function addDietRecord(openId, recordData) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const { mealType, foodId, unitId, customWeight, foodName, calories, protein, carbs, fat, fiber } = recordData
+  
+  if (!mealType) {
+    throw new BusinessError('餐次不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  let finalCalories = calories || 0
+  let finalProtein = protein || 0
+  let finalCarbs = carbs || 0
+  let finalFat = fat || 0
+  let finalFiber = fiber || 0
+  let finalFoodName = foodName || ''
+  
+  // 如果提供了foodId，自动计算营养信息
+  if (foodId) {
+    let weightGrams = 0
+    
+    // 如果提供了unitId，获取单位对应的重量
+    if (unitId) {
+      const units = await foodService.getUnitsByFood(foodId)
+      const unit = units.find(u => u.id === unitId)
+      if (!unit) {
+        throw new BusinessError('单位不存在')
+      }
+      weightGrams = unit.weightGrams
+    } else if (customWeight) {
+      // 如果提供了自定义重量
+      weightGrams = parseFloat(customWeight)
+    } else {
+      throw new BusinessError('请提供单位或自定义重量')
+    }
+    
+    // 计算营养信息
+    const nutrition = await foodService.calculateNutrition(foodId, weightGrams)
+    finalCalories = nutrition.calories
+    finalProtein = nutrition.protein
+    finalCarbs = nutrition.carbs
+    finalFat = nutrition.fat
+    finalFiber = nutrition.fiber
+    
+    // 获取食物名称
+    const food = await require('../food/food-model').findById(foodId)
+    if (food) {
+      finalFoodName = food.name
+    }
+  }
+  
+  if (!finalFoodName) {
+    throw new BusinessError('食物名称不能为空')
+  }
+  
+  const result = await dietModel.create({
+    userId: user.id,
+    mealType,
+    foodName: finalFoodName,
+    calories: finalCalories,
+    protein: finalProtein,
+    carbs: finalCarbs,
+    fat: finalFat,
+    fiber: finalFiber,
+    recordDate: recordData.recordDate || new Date().toISOString().split('T')[0]
+  })
+  
+  return {
+    id: result.insertId || result.id,
+    mealType,
+    foodName: finalFoodName,
+    calories: finalCalories,
+    protein: finalProtein,
+    carbs: finalCarbs,
+    fat: finalFat,
+    fiber: finalFiber
+  }
+}
+
+/**
+ * 删除饮食记录
+ */
+async function deleteDietRecord(openId, recordId) {
+  if (!openId || !recordId) {
+    throw new BusinessError('openId 和 recordId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  const record = await dietModel.findById(recordId)
+  if (!record) {
+    throw new BusinessError('记录不存在')
+  }
+  
+  if (record.user_id !== user.id) {
+    throw new BusinessError('无权删除该记录')
+  }
+  
+  await dietModel.deleteById(recordId, user.id)
+  return true
+}
+
+/**
+ * 获取今日饮食统计
+ */
+async function getTodayDietStats(openId) {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+  
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+  
+  const stats = await dietModel.getTodayStats(user.id)
+  
+  return {
+    totalCalories: stats.totalCalories || 0,
+    totalProtein: parseFloat(stats.totalProtein || 0),
+    totalCarbs: parseFloat(stats.totalCarbs || 0),
+    totalFat: parseFloat(stats.totalFat || 0),
+    totalFiber: parseFloat(stats.totalFiber || 0)
+  }
+}
+
 module.exports = {
   getOpenIdByCode,
   getUserInfoByOpenId,
@@ -773,5 +963,9 @@ module.exports = {
   addExerciseRecord,
   deleteExerciseRecord,
   calculateExerciseCalories,
-  needsDistance
+  needsDistance,
+  getDietRecords,
+  addDietRecord,
+  deleteDietRecord,
+  getTodayDietStats
 }

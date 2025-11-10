@@ -10,7 +10,14 @@ const pool = mysql.createPool({
   user: config.database.USERNAME,
   password: config.database.PASSWORD,
   database: config.database.DATABASE,
-  port: config.database.PORT
+  port: config.database.PORT,
+  charset: 'utf8mb4',
+  connectionLimit: 10
+})
+
+// 确保连接使用正确的字符集
+pool.on('connection', (connection) => {
+  connection.query('SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci')
 })
 
 /**

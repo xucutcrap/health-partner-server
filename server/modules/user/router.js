@@ -315,4 +315,90 @@ router.delete('/exercise-records/:id', handle(async (ctx) => {
   return success(null, '删除成功')
 }))
 
+/**
+ * 获取饮食记录列表
+ * GET /api/v1/user/diet-records?openId=xxx&mealType=xxx&startDate=xxx&endDate=xxx
+ */
+router.get('/diet-records', handle(async (ctx) => {
+  const { openId, mealType, startDate, endDate, limit, offset } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  
+  const options = {}
+  if (mealType) options.mealType = mealType
+  if (startDate) options.startDate = startDate
+  if (endDate) options.endDate = endDate
+  if (limit) options.limit = parseInt(limit)
+  if (offset) options.offset = parseInt(offset)
+  
+  const result = await userService.getDietRecords(openId, options)
+  return success(result)
+}))
+
+/**
+ * 添加饮食记录（支持自动计算卡路里）
+ * POST /api/v1/user/diet-records
+ * Body: {
+ *   openId,
+ *   mealType: '早餐',
+ *   foodId: 1,        // 可选，如果提供则自动计算
+ *   unitId: 2,        // 可选，如果提供foodId和unitId，自动计算
+ *   customWeight: 150, // 可选，自定义重量(克)
+ *   foodName: '米饭',  // 可选，如果不提供foodId则需要
+ *   calories: 200,    // 可选，如果不提供foodId则需要
+ *   protein, carbs, fat, fiber // 可选
+ * }
+ */
+router.post('/diet-records', handle(async (ctx) => {
+  const { openId, mealType, foodId, unitId, customWeight, foodName, calories, protein, carbs, fat, fiber, recordDate } = ctx.request.body
+  if (!openId || !mealType) {
+    return ctx.throw(400, 'openId 和 mealType 不能为空')
+  }
+  
+  const result = await userService.addDietRecord(openId, {
+    mealType,
+    foodId,
+    unitId,
+    customWeight,
+    foodName,
+    calories,
+    protein,
+    carbs,
+    fat,
+    fiber,
+    recordDate
+  })
+  return success(result)
+}))
+
+/**
+ * 删除饮食记录
+ * DELETE /api/v1/user/diet-records/:id?openId=xxx
+ */
+router.delete('/diet-records/:id', handle(async (ctx) => {
+  const { id } = ctx.params
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  
+  await userService.deleteDietRecord(openId, id)
+  return success(null, '删除成功')
+}))
+
+/**
+ * 获取今日饮食统计
+ * GET /api/v1/user/diet-stats?openId=xxx
+ */
+router.get('/diet-stats', handle(async (ctx) => {
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  
+  const result = await userService.getTodayDietStats(openId)
+  return success(result)
+}))
+
 module.exports = router
