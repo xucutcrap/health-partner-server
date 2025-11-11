@@ -33,10 +33,6 @@ async function createOrUpdateByUserId(userId, goalData) {
       updateFields.push('target_exercise = ?')
       updateValues.push(goalData.target_exercise)
     }
-    if (goalData.target_water !== undefined) {
-      updateFields.push('target_water = ?')
-      updateValues.push(goalData.target_water)
-    }
     if (goalData.target_steps !== undefined) {
       updateFields.push('target_steps = ?')
       updateValues.push(goalData.target_steps)
@@ -44,6 +40,18 @@ async function createOrUpdateByUserId(userId, goalData) {
     if (goalData.target_calories !== undefined) {
       updateFields.push('target_calories = ?')
       updateValues.push(goalData.target_calories)
+    }
+    if (goalData.target_calories_burned !== undefined) {
+      updateFields.push('target_calories_burned = ?')
+      updateValues.push(goalData.target_calories_burned)
+    }
+    if (goalData.target_calories_rest_day !== undefined) {
+      updateFields.push('target_calories_rest_day = ?')
+      updateValues.push(goalData.target_calories_rest_day)
+    }
+    if (goalData.target_calories_exercise_day !== undefined) {
+      updateFields.push('target_calories_exercise_day = ?')
+      updateValues.push(goalData.target_calories_exercise_day)
     }
     if (goalData.target_date !== undefined) {
       updateFields.push('target_date = ?')
@@ -64,9 +72,11 @@ async function createOrUpdateByUserId(userId, goalData) {
       user_id: userId,
       target_weight: goalData.target_weight || null,
       target_exercise: goalData.target_exercise || 30,
-      target_water: goalData.target_water || 8,
       target_steps: goalData.target_steps || 10000,
       target_calories: goalData.target_calories || 2000,
+      target_calories_burned: goalData.target_calories_burned || 500,
+      target_calories_rest_day: goalData.target_calories_rest_day || null,
+      target_calories_exercise_day: goalData.target_calories_exercise_day || null,
       target_date: goalData.target_date || null
     }
     await goalDb.create(insertData)

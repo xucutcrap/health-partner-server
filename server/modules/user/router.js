@@ -121,16 +121,18 @@ router.get('/goals', handle(async (ctx) => {
  * POST /api/v1/user/goals
  */
 router.post('/goals', handle(async (ctx) => {
-  const { openId, targetWeight, targetExercise, targetWater, targetSteps, targetCalories, targetDate } = ctx.request.body
+  const { openId, targetWeight, targetExercise, targetSteps, targetCalories, targetCaloriesBurned, targetCaloriesRestDay, targetCaloriesExerciseDay, targetDate } = ctx.request.body
   if (!openId) {
     return ctx.throw(400, 'openId 不能为空')
   }
   const result = await userService.updateUserGoals(openId, {
     targetWeight,
     targetExercise,
-    targetWater,
     targetSteps,
     targetCalories,
+    targetCaloriesBurned,
+    targetCaloriesRestDay,
+    targetCaloriesExerciseDay,
     targetDate
   })
   return success(result)
@@ -221,14 +223,24 @@ router.delete('/health-records/:id', handle(async (ctx) => {
 
 /**
  * 获取目标设置页面数据（包括计算值）
- * GET /api/v1/user/goal-page-data?openId=xxx
+ * GET /api/v1/user/goal-page-data?openId=xxx&targetWeight=xx&exerciseDuration=xx
  */
 router.get('/goal-page-data', handle(async (ctx) => {
-  const { openId } = ctx.query
+  const { openId, targetWeight, exerciseDuration } = ctx.query
   if (!openId) {
     return ctx.throw(400, 'openId 不能为空')
   }
-  const result = await userService.getGoalPageData(openId)
+  
+  // 构建临时参数对象（如果提供了临时值）
+  const tempParams = {}
+  if (targetWeight !== undefined && targetWeight !== '') {
+    tempParams.targetWeight = parseFloat(targetWeight)
+  }
+  if (exerciseDuration !== undefined && exerciseDuration !== '') {
+    tempParams.exerciseDuration = parseInt(exerciseDuration)
+  }
+  
+  const result = await userService.getGoalPageData(openId, tempParams)
   return success(result)
 }))
 

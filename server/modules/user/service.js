@@ -212,9 +212,11 @@ async function getUserGoals(openId) {
   return {
     targetWeight: goals?.target_weight || null,
     targetExercise: goals?.target_exercise || 30,
-    targetWater: goals?.target_water || 8,
     targetSteps: goals?.target_steps || 10000,
     targetCalories: goals?.target_calories || null,
+    targetCaloriesBurned: goals?.target_calories_burned || 500,
+    targetCaloriesRestDay: goals?.target_calories_rest_day || null,
+    targetCaloriesExerciseDay: goals?.target_calories_exercise_day || null,
     targetDate: targetDate
   }
 }
@@ -239,14 +241,20 @@ async function updateUserGoals(openId, goalData) {
   if (goalData.targetExercise !== undefined) {
     updateData.target_exercise = goalData.targetExercise
   }
-  if (goalData.targetWater !== undefined) {
-    updateData.target_water = goalData.targetWater
-  }
   if (goalData.targetSteps !== undefined) {
     updateData.target_steps = goalData.targetSteps
   }
   if (goalData.targetCalories !== undefined) {
     updateData.target_calories = goalData.targetCalories
+  }
+  if (goalData.targetCaloriesBurned !== undefined) {
+    updateData.target_calories_burned = goalData.targetCaloriesBurned
+  }
+  if (goalData.targetCaloriesRestDay !== undefined) {
+    updateData.target_calories_rest_day = goalData.targetCaloriesRestDay
+  }
+  if (goalData.targetCaloriesExerciseDay !== undefined) {
+    updateData.target_calories_exercise_day = goalData.targetCaloriesExerciseDay
   }
   if (goalData.targetDate !== undefined) {
     updateData.target_date = goalData.targetDate || null
@@ -267,9 +275,11 @@ async function updateUserGoals(openId, goalData) {
   return {
     targetWeight: goals.target_weight || null,
     targetExercise: goals.target_exercise || 30,
-    targetWater: goals.target_water || 8,
     targetSteps: goals.target_steps || 10000,
     targetCalories: goals.target_calories || 2000,
+    targetCaloriesBurned: goals.target_calories_burned || 500,
+    targetCaloriesRestDay: goals.target_calories_rest_day || null,
+    targetCaloriesExerciseDay: goals.target_calories_exercise_day || null,
     targetDate: targetDate
   }
 }
@@ -289,7 +299,6 @@ async function getTodayProgress(openId) {
   
   // 获取今日完成情况
   const todayExercise = await recordModel.getTodayExerciseTotal(user.id)
-  const todayWater = await recordModel.getTodayWaterTotal(user.id)
   const todaySteps = await recordModel.getTodayStepsTotal(user.id)
   
   // 获取用户目标
@@ -299,10 +308,6 @@ async function getTodayProgress(openId) {
     exercise: {
       completed: todayExercise,
       target: goals?.target_exercise || 30
-    },
-    water: {
-      completed: todayWater,
-      target: goals?.target_water || 8
     },
     steps: {
       completed: todaySteps,
@@ -485,6 +490,7 @@ function calculateBMR(weight, height, age, gender) {
 
 /**
  * 计算每日热量需求 (TDEE) - 总能量消耗
+ * @deprecated 使用 calculateRecommendedCalories 替代
  */
 function calculateTDEE(bmr, activityLevel = 1.375) {
   // 活动系数（基于每周运动频率）：
@@ -498,9 +504,98 @@ function calculateTDEE(bmr, activityLevel = 1.375) {
 }
 
 /**
- * 获取目标设置页面的完整数据（包括计算值）
+ * 根据用户目标和运动情况计算推荐热量摄入
+ * @param {number} bmr - 基础代谢率
+ * @param {number} currentWeight - 当前体重(kg)
+ * @param {number} targetWeight - 目标体重(kg)
+ * @param {number} exerciseDuration - 运动时长(分钟)
+ * @param {string} exerciseType - 运动类型，默认'跑步'
+ * @returns {object} 返回推荐热量信息
  */
-async function getGoalPageData(openId) {
+function calculateRecommendedCalories(bmr, currentWeight, targetWeight, exerciseDuration = 0, exerciseType = '跑步') {
+  // 判断用户目标：减肥 or 增重
+  const isLosingWeight = targetWeight && currentWeight > targetWeight
+  const isGainingWeight = targetWeight && currentWeight < targetWeight
+  
+  // 计算运动消耗的卡路里（如果运动）
+  let exerciseCalories = 0
+  if (exerciseDuration > 0) {
+    exerciseCalories = calculateExerciseCalories(exerciseType, exerciseDuration, null)
+  }
+  
+  // 总消耗 = BMR + 运动消耗
+  const totalExpenditure = bmr + exerciseCalories
+  
+  // 根据目标计算推荐摄入
+  let recommendedIntake = 0
+  let recommendation = {}
+  
+  if (isLosingWeight) {
+    // 减肥：建议每日热量缺口 300-500 卡（健康减重速度：每周0.5-1kg）
+    // 推荐摄入 = 总消耗 - 热量缺口
+    const calorieDeficit = 400 // 取中间值，每周约减0.75kg
+    recommendedIntake = Math.max(totalExpenditure - calorieDeficit, bmr * 0.8) // 最低不低于BMR的80%
+    
+    recommendation = {
+      goalType: 'lose',
+      goalTypeText: '减肥',
+      bmr: bmr,
+      exerciseCalories: exerciseCalories,
+      totalExpenditure: totalExpenditure,
+      recommendedIntake: Math.round(recommendedIntake),
+      calorieDeficit: calorieDeficit,
+      // 非运动日推荐
+      restDayIntake: Math.round(Math.max(bmr - calorieDeficit, bmr * 0.8)),
+      // 运动日推荐
+      exerciseDayIntake: Math.round(recommendedIntake)
+    }
+  } else if (isGainingWeight) {
+    // 增重：建议每日热量盈余 300-500 卡
+    const calorieSurplus = 400 // 取中间值
+    recommendedIntake = totalExpenditure + calorieSurplus
+    
+    recommendation = {
+      goalType: 'gain',
+      goalTypeText: '增重',
+      bmr: bmr,
+      exerciseCalories: exerciseCalories,
+      totalExpenditure: totalExpenditure,
+      recommendedIntake: Math.round(recommendedIntake),
+      calorieSurplus: calorieSurplus,
+      // 非运动日推荐
+      restDayIntake: Math.round(bmr + calorieSurplus),
+      // 运动日推荐
+      exerciseDayIntake: Math.round(recommendedIntake)
+    }
+  } else {
+    // 维持体重：摄入 = 总消耗
+    recommendedIntake = totalExpenditure
+    
+    recommendation = {
+      goalType: 'maintain',
+      goalTypeText: '维持',
+      bmr: bmr,
+      exerciseCalories: exerciseCalories,
+      totalExpenditure: totalExpenditure,
+      recommendedIntake: Math.round(recommendedIntake),
+      // 非运动日推荐
+      restDayIntake: Math.round(bmr),
+      // 运动日推荐
+      exerciseDayIntake: Math.round(recommendedIntake)
+    }
+  }
+  
+  return recommendation
+}
+
+/**
+ * 获取目标设置页面的完整数据（包括计算值）
+ * @param {string} openId - 用户openId
+ * @param {object} tempParams - 临时参数（用于实时计算推荐热量）
+ * @param {number} tempParams.targetWeight - 临时目标体重
+ * @param {number} tempParams.exerciseDuration - 临时运动时长
+ */
+async function getGoalPageData(openId, tempParams = {}) {
   if (!openId) {
     throw new BusinessError('openId 不能为空')
   }
@@ -528,8 +623,20 @@ async function getGoalPageData(openId) {
   // 计算基础代谢率
   const bmr = calculateBMR(profile.weight, profile.height, profile.age || 30, profile.gender)
   
-  // 计算每日热量需求（默认轻度活动）
+  // 计算每日热量需求（默认轻度活动，用于兼容）
   const tdee = calculateTDEE(bmr, 1.375)
+  
+  // 根据用户目标和运动情况计算推荐热量
+  // 优先使用临时参数（用户正在输入的值），否则使用数据库中的值
+  const targetWeight = tempParams.targetWeight !== undefined ? tempParams.targetWeight : (goals?.target_weight || null)
+  const exerciseDuration = tempParams.exerciseDuration !== undefined ? tempParams.exerciseDuration : (goals?.target_exercise || 30)
+  const calorieRecommendation = calculateRecommendedCalories(
+    bmr,
+    profile.weight,
+    targetWeight,
+    exerciseDuration,
+    '跑步' // 默认运动类型
+  )
   
   // 格式化日期为 YYYY-MM-DD
   let targetDate = null
@@ -551,12 +658,14 @@ async function getGoalPageData(openId) {
     },
     idealWeightRange,
     bmr,
-    tdee,
+    tdee, // 保留用于兼容
+    calorieRecommendation, // 新的推荐热量信息
     goals: {
-      targetWeight: goals?.target_weight || null,
-      targetExercise: goals?.target_exercise || 30,
-      targetWater: goals?.target_water || 8,
-      targetCalories: goals?.target_calories || tdee,
+      targetWeight: targetWeight,
+      targetExercise: exerciseDuration,
+      targetCalories: goals?.target_calories || calorieRecommendation.recommendedIntake,
+      targetCaloriesRestDay: goals?.target_calories_rest_day || null,
+      targetCaloriesExerciseDay: goals?.target_calories_exercise_day || null,
       targetSteps: goals?.target_steps || 10000,
       targetDate: targetDate
     }
