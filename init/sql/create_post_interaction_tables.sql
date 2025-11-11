@@ -33,3 +33,4 @@ CREATE TABLE IF NOT EXISTS `post_comments` (
   CONSTRAINT `fk_post_comments_reply_to_user_id` FOREIGN KEY (`reply_to_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='帖子评论表';
 
+

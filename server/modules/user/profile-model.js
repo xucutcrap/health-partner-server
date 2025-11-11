@@ -41,10 +41,6 @@ async function createOrUpdateByUserId(userId, profileData) {
       updateFields.push('gender = ?')
       updateValues.push(profileData.gender)
     }
-    if (profileData.body_fat !== undefined) {
-      updateFields.push('body_fat = ?')
-      updateValues.push(profileData.body_fat)
-    }
     
     if (updateFields.length > 0) {
       updateValues.push(userId)
@@ -61,8 +57,7 @@ async function createOrUpdateByUserId(userId, profileData) {
       height: profileData.height || null,
       weight: profileData.weight || null,
       age: profileData.age || null,
-      gender: profileData.gender || '男',
-      body_fat: profileData.body_fat || null
+      gender: profileData.gender || '男'
     }
     await profileDb.create(insertData)
     return await findByUserId(userId)

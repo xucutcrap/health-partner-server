@@ -45,3 +45,4 @@ CREATE TABLE IF NOT EXISTS `food_units` (
   CONSTRAINT `fk_food_units_food_id` FOREIGN KEY (`food_id`) REFERENCES `foods` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='食物单位表';
 
+

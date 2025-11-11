@@ -138,8 +138,7 @@ async function getUserProfile(openId) {
     height: profile?.height || null,
     weight: profile?.weight || null,
     age: profile?.age || null,
-    gender: profile?.gender || '男',
-    bodyFat: profile?.body_fat || null
+    gender: profile?.gender || '男'
   }
 }
 
@@ -167,8 +166,7 @@ async function updateUserProfile(openId, profileData) {
     height: profileData.height,
     weight: profileData.weight,
     age: profileData.age,
-    gender: profileData.gender,
-    body_fat: profileData.bodyFat || null
+    gender: profileData.gender
   }
   
   const profile = await profileModel.createOrUpdateByUserId(user.id, updateData)
@@ -178,7 +176,6 @@ async function updateUserProfile(openId, profileData) {
     weight: profile.weight,
     age: profile.age,
     gender: profile.gender,
-    bodyFat: profile.body_fat,
     bmi: bmi ? parseFloat(bmi.toFixed(1)) : null
   }
 }
