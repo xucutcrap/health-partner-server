@@ -1,13 +1,30 @@
 /**
  * 帖子业务服务
  */
-const { errors } = require('../../core')
+const { errors, database } = require('../../core')
 const postModel = require('./post-model')
 const userModel = require('../user/model')
 const likeModel = require('./post-like-model')
 const commentModel = require('./post-comment-model')
 
 const { BusinessError } = errors
+
+/**
+ * 获取功能开关（从配置表读取）
+ */
+async function getCommentEnabled() {
+  try {
+    const db = database.createDbOperations()
+    const config = await db.queryOne(
+      'SELECT config_value FROM system_config WHERE config_key = ?',
+      ['comment_enabled']
+    )
+    return config && config.config_value === '1'
+  } catch (error) {
+    // 如果配置不存在或查询失败，默认返回false（关闭）
+    return false
+  }
+}
 
 /**
  * 发布帖子
@@ -57,6 +74,9 @@ async function getPostList(options = {}) {
     const commentsCount = await commentModel.getCommentsCount(postIds)
     console.log('批量获取评论数量:', commentsCount); // 调试日志
     
+    // 获取功能开关（从配置表读取，隐蔽地混在帖子数据中）
+    const commentEnabled = await getCommentEnabled()
+    
     // 如果提供了openId，批量获取点赞信息
     if (openId) {
       const user = await userModel.findByOpenId(openId)
@@ -69,6 +89,7 @@ async function getPostList(options = {}) {
           post.likeCount = likeInfo.count
           post.isLiked = likeInfo.isLiked
           post.commentCount = commentsCount[post.id] || 0
+          post.powerEnable = commentEnabled // 功能开关，混在帖子数据中
           console.log(`帖子 ${post.id} 评论数量:`, post.commentCount); // 调试日志
         })
       } else {
@@ -77,6 +98,7 @@ async function getPostList(options = {}) {
           post.likeCount = 0
           post.isLiked = false
           post.commentCount = commentsCount[post.id] || 0
+          post.powerEnable = commentEnabled // 功能开关
         })
       }
     } else {
@@ -85,8 +107,13 @@ async function getPostList(options = {}) {
         post.likeCount = 0
         post.isLiked = false
         post.commentCount = commentsCount[post.id] || 0
+        post.powerEnable = commentEnabled // 功能开关
       })
     }
+  } else {
+    // 即使没有帖子，也返回开关状态（前端可能需要）
+    const commentEnabled = await getCommentEnabled()
+    // 返回空数组，但可以通过其他方式传递开关（如果需要）
   }
   
   return posts
@@ -120,12 +147,16 @@ async function getUserTimeline(openId, options = {}) {
         const likesInfo = await likeModel.getLikesInfo(postIds, user.id)
         const commentsCount = await commentModel.getCommentsCount(postIds)
         
+        // 获取功能开关（从配置表读取，隐蔽地混在帖子数据中）
+        const commentEnabled = await getCommentEnabled()
+        
         // 将点赞信息和评论数量附加到每个帖子
         posts.forEach(post => {
           const likeInfo = likesInfo[post.id] || { count: 0, isLiked: false }
           post.likeCount = likeInfo.count
           post.isLiked = likeInfo.isLiked
           post.commentCount = commentsCount[post.id] || 0
+          post.powerEnable = commentEnabled // 功能开关，混在帖子数据中
         })
       }
       
