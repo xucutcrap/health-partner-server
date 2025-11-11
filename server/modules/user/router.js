@@ -46,8 +46,19 @@ router.post('/upload-avatar', handle(async (ctx) => {
   }
   
   // 返回完整的访问 URL（需要根据实际部署情况配置）
-  const baseUrl = ctx.request.protocol + '://' + ctx.request.host
+  // 如果使用反向代理，需要检查 X-Forwarded-Proto 来获取真实的协议
+  const forwardedProto = ctx.request.get('X-Forwarded-Proto')
+  const protocol = forwardedProto || ctx.request.protocol || 'https'
+  const baseUrl = protocol + '://' + ctx.request.host
   const avatarUrl = baseUrl + uploadResult.data.url
+  
+  // 调试日志（生产环境可以移除）
+  console.log('上传头像 - 协议检测:', {
+    'X-Forwarded-Proto': forwardedProto,
+    'ctx.request.protocol': ctx.request.protocol,
+    '最终使用协议': protocol,
+    '返回URL': avatarUrl
+  })
   
   return success({
     avatarUrl: avatarUrl,
