@@ -8,10 +8,13 @@ const router = require('koa-router')()
 const userRouter = require('../modules/user').router
 // 引入食物模块路由
 const foodRouter = require('../modules/food/router')
+// 引入帖子模块路由
+const postRouter = require('../modules/post').router
 
 // API路由 (v1版本)
 router.use('/api/v1/user', userRouter.routes(), userRouter.allowedMethods())
 router.use('/api/v1/food', foodRouter.routes(), foodRouter.allowedMethods())
+router.use('/api/v1/post', postRouter.routes(), postRouter.allowedMethods())
 
 // 健康检查接口
 router.get('/health', async (ctx) => {
