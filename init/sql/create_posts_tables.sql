@@ -27,3 +27,4 @@ CREATE TABLE IF NOT EXISTS `post_images` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='帖子图片表';
 
 
+
