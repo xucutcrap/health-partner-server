@@ -150,11 +150,41 @@ async function getCommentCount(postId) {
   return result ? result.count : 0
 }
 
+/**
+ * 批量获取帖子评论数量
+ */
+async function getCommentsCount(postIds) {
+  if (!postIds || postIds.length === 0) {
+    return {}
+  }
+  
+  const placeholders = postIds.map(() => '?').join(',')
+  const sql = `
+    SELECT post_id, COUNT(*) as count 
+    FROM post_comments 
+    WHERE post_id IN (${placeholders})
+    GROUP BY post_id
+  `
+  const results = await commentDb.query(sql, postIds)
+  console.log('getCommentsCount 查询结果:', results); // 调试日志
+  
+  // 构建结果对象
+  const result = {}
+  postIds.forEach(postId => {
+    const data = results.find(r => r.post_id === postId)
+    result[postId] = data ? Number(data.count) : 0
+  })
+  
+  console.log('getCommentsCount 返回结果:', result); // 调试日志
+  return result
+}
+
 module.exports = {
   findByPostId,
   findById,
   create,
   deleteById,
-  getCommentCount
+  getCommentCount,
+  getCommentsCount
 }
 

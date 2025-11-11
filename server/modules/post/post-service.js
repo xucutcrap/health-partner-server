@@ -49,18 +49,42 @@ async function getPostList(options = {}) {
     pageSize
   })
   
-  // 如果提供了openId，批量获取点赞信息
-  if (openId && posts.length > 0) {
-    const user = await userModel.findByOpenId(openId)
-    if (user) {
-      const postIds = posts.map(p => p.id)
-      const likesInfo = await likeModel.getLikesInfo(postIds, user.id)
-      
-      // 将点赞信息附加到每个帖子
+  // 批量获取点赞信息和评论数量
+  if (posts.length > 0) {
+    const postIds = posts.map(p => p.id)
+    
+    // 批量获取评论数量
+    const commentsCount = await commentModel.getCommentsCount(postIds)
+    console.log('批量获取评论数量:', commentsCount); // 调试日志
+    
+    // 如果提供了openId，批量获取点赞信息
+    if (openId) {
+      const user = await userModel.findByOpenId(openId)
+      if (user) {
+        const likesInfo = await likeModel.getLikesInfo(postIds, user.id)
+        
+        // 将点赞信息和评论数量附加到每个帖子
+        posts.forEach(post => {
+          const likeInfo = likesInfo[post.id] || { count: 0, isLiked: false }
+          post.likeCount = likeInfo.count
+          post.isLiked = likeInfo.isLiked
+          post.commentCount = commentsCount[post.id] || 0
+          console.log(`帖子 ${post.id} 评论数量:`, post.commentCount); // 调试日志
+        })
+      } else {
+        // 如果没有用户信息，只添加评论数量
+        posts.forEach(post => {
+          post.likeCount = 0
+          post.isLiked = false
+          post.commentCount = commentsCount[post.id] || 0
+        })
+      }
+    } else {
+      // 如果没有openId，只添加评论数量
       posts.forEach(post => {
-        const info = likesInfo[post.id] || { count: 0, isLiked: false }
-        post.likeCount = info.count
-        post.isLiked = info.isLiked
+        post.likeCount = 0
+        post.isLiked = false
+        post.commentCount = commentsCount[post.id] || 0
       })
     }
   }
@@ -84,26 +108,28 @@ async function getUserTimeline(openId, options = {}) {
   const page = options.page || 1
   const pageSize = options.pageSize || 20
   
-  const posts = await postModel.findList({
-    page,
-    pageSize,
-    userId: user.id // 只查询当前用户的帖子
-  })
-  
-  // 批量获取点赞信息
-  if (posts.length > 0) {
-    const postIds = posts.map(p => p.id)
-    const likesInfo = await likeModel.getLikesInfo(postIds, user.id)
-    
-    // 将点赞信息附加到每个帖子
-    posts.forEach(post => {
-      const info = likesInfo[post.id] || { count: 0, isLiked: false }
-      post.likeCount = info.count
-      post.isLiked = info.isLiked
-    })
-  }
-  
-  return posts
+      const posts = await postModel.findList({
+        page,
+        pageSize,
+        userId: user.id // 只查询当前用户的帖子
+      })
+      
+      // 批量获取点赞信息和评论数量
+      if (posts.length > 0) {
+        const postIds = posts.map(p => p.id)
+        const likesInfo = await likeModel.getLikesInfo(postIds, user.id)
+        const commentsCount = await commentModel.getCommentsCount(postIds)
+        
+        // 将点赞信息和评论数量附加到每个帖子
+        posts.forEach(post => {
+          const likeInfo = likesInfo[post.id] || { count: 0, isLiked: false }
+          post.likeCount = likeInfo.count
+          post.isLiked = likeInfo.isLiked
+          post.commentCount = commentsCount[post.id] || 0
+        })
+      }
+      
+      return posts
 }
 
 /**
