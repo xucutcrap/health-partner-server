@@ -22,13 +22,14 @@ router.post('/create', handle(async (ctx) => {
 
 /**
  * 获取帖子列表
- * GET /api/v1/post/list?page=1&pageSize=20
+ * GET /api/v1/post/list?page=1&pageSize=20&openId=xxx
  */
 router.get('/list', handle(async (ctx) => {
-  const { page = 1, pageSize = 20 } = ctx.query
+  const { page = 1, pageSize = 20, openId } = ctx.query
   const result = await postService.getPostList({
     page: parseInt(page),
-    pageSize: parseInt(pageSize)
+    pageSize: parseInt(pageSize),
+    openId: openId || null
   })
   return success(result)
 }))
@@ -82,6 +83,66 @@ router.delete('/:id', handle(async (ctx) => {
     return ctx.throw(400, 'openId 不能为空')
   }
   await postService.deletePost(openId, parseInt(id))
+  return success(true)
+}))
+
+/**
+ * 点赞/取消点赞
+ * POST /api/v1/post/:id/like?openId=xxx
+ */
+router.post('/:id/like', handle(async (ctx) => {
+  const { id } = ctx.params
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await postService.toggleLike(openId, parseInt(id))
+  return success(result)
+}))
+
+/**
+ * 获取帖子评论列表
+ * GET /api/v1/post/:id/comments
+ */
+router.get('/:id/comments', handle(async (ctx) => {
+  const { id } = ctx.params
+  const result = await postService.getPostComments(parseInt(id))
+  return success(result)
+}))
+
+/**
+ * 添加评论
+ * POST /api/v1/post/:id/comment?openId=xxx
+ */
+router.post('/:id/comment', handle(async (ctx) => {
+  const { id } = ctx.params
+  const { openId } = ctx.query
+  const { content, parentId, replyToUserId } = ctx.request.body
+  
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  
+  const result = await postService.addComment(openId, {
+    postId: parseInt(id),
+    content,
+    parentId: parentId ? parseInt(parentId) : null,
+    replyToUserId: replyToUserId ? parseInt(replyToUserId) : null
+  })
+  return success(result)
+}))
+
+/**
+ * 删除评论
+ * DELETE /api/v1/post/comment/:commentId?openId=xxx
+ */
+router.delete('/comment/:commentId', handle(async (ctx) => {
+  const { commentId } = ctx.params
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  await postService.deleteComment(openId, parseInt(commentId))
   return success(true)
 }))
 
