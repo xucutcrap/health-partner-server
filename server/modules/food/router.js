@@ -68,12 +68,39 @@ router.post('/calculate', handle(async (ctx) => {
   if (!foodId || !weightGrams) {
     return ctx.throw(400, 'foodId 和 weightGrams 不能为空')
   }
-  
+
   const result = await foodService.calculateNutrition(parseInt(foodId), parseFloat(weightGrams))
   return success(result)
 }))
 
+/**
+ * 食物图片识别
+ * POST /api/v1/food/recognize
+ * Body: { imageBase64 }
+ */
+router.post('/recognize', handle(async (ctx) => {
+  const { imageBase64 } = ctx.request.body
+  if (!imageBase64) {
+    return ctx.throw(400, 'imageBase64 不能为空')
+  }
+
+  const result = await foodService.recognizeFoodFromBase64(imageBase64)
+  return success(result)
+}))
+
+/**
+ * 通过食物名称直接添加饮食记录（拍照识图专用）
+ * POST /api/v1/food/quick-add
+ * Body: { openId, foodName, weightGrams, caloriePer100g? }
+ */
+router.post('/quick-add', handle(async (ctx) => {
+  const { openId, foodName, weightGrams, caloriePer100g } = ctx.request.body
+  if (!openId || !foodName || !weightGrams) {
+    return ctx.throw(400, 'openId、foodName 和 weightGrams 不能为空')
+  }
+
+  const result = await foodService.addFoodRecordByName(openId, foodName, parseFloat(weightGrams), caloriePer100g || null)
+  return success(result)
+}))
+
 module.exports = router
-
-
-

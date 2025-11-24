@@ -3,6 +3,10 @@
  * 整合所有模块路由
  */
 const router = require('koa-router')()
+const { uploadPicture } = require('../utils/upload')
+const { response } = require('../core')
+
+const { success, fail } = response
 
 // 引入用户模块路由
 const userRouter = require('../modules/user').router
@@ -10,6 +14,25 @@ const userRouter = require('../modules/user').router
 const foodRouter = require('../modules/food/router')
 // 引入帖子模块路由
 const postRouter = require('../modules/post').router
+
+/**
+ * 图片上传接口
+ * POST /api/v1/upload/image
+ */
+
+router.post('/api/v1/upload/image', async (ctx) => {
+  try {
+    const result = await uploadPicture(ctx, { pictureType: 'food-recognition' })
+    if (result.success) {
+      ctx.body = success(result.data)
+    } else {
+      ctx.body = fail('上传失败')
+    }
+  } catch (error) {
+    console.error('Upload error:', error)
+    ctx.body = fail('上传失败')
+  }
+})
 
 // API路由 (v1版本)
 router.use('/api/v1/user', userRouter.routes(), userRouter.allowedMethods())
