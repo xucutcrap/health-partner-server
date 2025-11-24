@@ -7,7 +7,7 @@ const { database } = require('../../core')
 const goalDb = database.createDbOperations('user_goals')
 
 /**
- * 根据用户ID查找目标
+ * 用户ID查找目标
  */
 async function findByUserId(userId) {
   const sql = 'SELECT * FROM user_goals WHERE user_id = ?'
