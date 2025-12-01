@@ -362,3 +362,4 @@ module.exports = {
   recognizeFoodFromImage,
   recognizeFoodFromBase64
 }
+
