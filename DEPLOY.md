@@ -154,6 +154,9 @@ server {
     listen 80;
     server_name your-domain.com;
 
+    # 增加请求体大小限制（用于图片识别等大文件上传）
+    client_max_body_size 20M;
+
     location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
@@ -161,6 +164,11 @@ server {
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_cache_bypass $http_upgrade;
+        
+        # 增加代理超时时间（用于图片识别等长时间请求）
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
     }
 
     # 静态文件服务
@@ -170,6 +178,11 @@ server {
     }
 }
 ```
+
+**重要提示**：
+- `client_max_body_size 20M;` - 允许最大 20MB 的请求体（图片 base64 编码通常需要较大空间）
+- `proxy_read_timeout 300s;` - 增加代理读取超时到 300 秒（图片识别可能需要较长时间）
+- 修改配置后需要重启 nginx：`sudo nginx -t && sudo nginx -s reload`
 
 ## 三、小程序配置
 
@@ -229,6 +242,24 @@ const BASE_URL = 'https://your-domain.com';  // 生产环境API地址
 - 检查域名白名单配置
 - 检查 HTTPS 证书是否有效
 - 检查后端服务是否正常运行
+
+### 5. 413 Request Entity Too Large（Nginx）
+
+如果使用 Nginx 反向代理，遇到 413 错误时：
+
+1. 编辑 nginx 配置文件（通常在 `/etc/nginx/sites-available/default` 或 `/etc/nginx/nginx.conf`）
+2. 在 `server` 块中添加：
+   ```nginx
+   client_max_body_size 20M;
+   ```
+3. 在 `location /` 块中添加超时设置：
+   ```nginx
+   proxy_read_timeout 300s;
+   proxy_connect_timeout 300s;
+   proxy_send_timeout 300s;
+   ```
+4. 测试配置：`sudo nginx -t`
+5. 重新加载配置：`sudo nginx -s reload`
 
 ## 六、备份建议
 
