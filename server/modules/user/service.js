@@ -921,9 +921,10 @@ async function addDietRecord(openId, recordData) {
   
   const { mealType, foodId, unitId, customWeight, foodName, calories, protein, carbs, fat, fiber } = recordData
   
-  if (!mealType) {
-    throw new BusinessError('餐次不能为空')
-  }
+  // mealType 可以为空字符串（扫码识别可能不知道餐次）
+  // if (!mealType) {
+  //   throw new BusinessError('餐次不能为空')
+  // }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {

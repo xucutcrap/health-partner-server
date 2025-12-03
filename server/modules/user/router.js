@@ -366,12 +366,15 @@ router.get('/diet-records', handle(async (ctx) => {
  */
 router.post('/diet-records', handle(async (ctx) => {
   const { openId, mealType, foodId, unitId, customWeight, foodName, calories, protein, carbs, fat, fiber, recordDate } = ctx.request.body
-  if (!openId || !mealType) {
-    return ctx.throw(400, 'openId 和 mealType 不能为空')
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
   }
   
+  // mealType 可以为空（扫码识别可能不知道餐次），使用空字符串作为默认值
+  const finalMealType = mealType || ''
+  
   const result = await userService.addDietRecord(openId, {
-    mealType,
+    mealType: finalMealType,
     foodId,
     unitId,
     customWeight,

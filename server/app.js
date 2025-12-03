@@ -24,7 +24,12 @@ app.use(Middleware.requestLogger)
 app.use(koaLogger())
 
 // 配置ctx.body解析中间件
-app.use(bodyParser())
+// 增加 jsonLimit 以支持图片 base64 传输（20MB）
+app.use(bodyParser({
+  jsonLimit: '20mb',
+  formLimit: '20mb',
+  textLimit: '20mb'
+}))
 
 // 静态文件服务（上传的文件）
 app.use(serve(path.join(__dirname, '../static')))
