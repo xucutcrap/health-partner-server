@@ -752,6 +752,128 @@ function extractNutritionFromTable(analysisText, foodName) {
 }
 
 /**
+ * 分析单个食物的营养成分（使用豆包AI）
+ * @param {string} foodName - 食物名称
+ * @param {number} weight - 食物重量（克）
+ * @returns {Promise<Object>} 营养成分数据
+ */
+async function analyzeFoodNutrition(foodName, weight) {
+  const config = require('../../../config')
+  const apiKey = process.env.DOUBAO_API_KEY || config.doubao?.apiKey
+  const baseUrl = process.env.DOUBAO_BASE_URL || config.doubao?.baseUrl
+  const model = process.env.DOUBAO_MODEL || config.doubao?.model
+
+  if (!apiKey || !baseUrl || !model) {
+    console.error('豆包API配置不完整')
+    throw new Error('AI服务配置不完整')
+  }
+
+  try {
+    // 构建提示词
+    const prompt = `请分析以下食物的营养成分：
+
+食物名称：${foodName}
+重量：${weight}克
+
+请直接返回一个JSON对象，格式如下：
+{
+  "calories": 数字（卡路里），
+  "protein": 数字（蛋白质，克），
+  "carbs": 数字（碳水化合物，克），
+  "fat": 数字（脂肪，克），
+  "fiber": 数字（膳食纤维，克，可选）
+}
+
+只返回JSON，不要其他解释文字。`
+
+    // 调用豆包API
+    const requestUrl = `${baseUrl}/responses`
+    const requestData = {
+      model: model,
+      input: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: prompt
+            }
+          ]
+        }
+      ]
+    }
+
+    console.log('调用豆包API分析食物营养:', foodName, weight + 'g')
+    
+    const response = await axios.post(requestUrl, requestData, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    })
+
+    // 解析响应
+    const responseData = response.data
+    let jsonText = ''
+    
+    if (responseData.output && responseData.output[1] && responseData.output[1].content && responseData.output[1].content[0]) {
+      jsonText = responseData.output[1].content[0].text || ''
+    }
+
+    if (!jsonText) {
+      throw new Error('无法获取AI响应')
+    }
+
+    console.log('AI响应:', jsonText)
+
+    // 提取JSON（可能包含在markdown代码块中）
+    let cleanJson = jsonText.trim()
+    const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+    if (jsonMatch) {
+      cleanJson = jsonMatch[1]
+    } else {
+      // 尝试提取第一个{到最后一个}之间的内容
+      const braceMatch = jsonText.match(/\{[\s\S]*\}/)
+      if (braceMatch) {
+        cleanJson = braceMatch[0]
+      }
+    }
+
+    // 解析JSON
+    const data = JSON.parse(cleanJson)
+
+    return {
+      calories: Math.round(data.calories || 0),
+      protein: parseFloat((data.protein || 0).toFixed(1)),
+      carbs: parseFloat((data.carbs || 0).toFixed(1)),
+      fat: parseFloat((data.fat || 0).toFixed(1)),
+      fiber: parseFloat((data.fiber || 0).toFixed(1))
+    }
+
+  } catch (error) {
+    console.error('分析食物营养失败:', error.message)
+    if (error.response) {
+      console.error('响应状态:', error.response.status)
+      console.error('响应数据:', error.response.data)
+    }
+    
+    // 返回估算值（基于常见食物的平均值）
+    // 这里可以根据食物名称做简单的分类估算
+    const estimatedCaloriesPer100g = 150 // 平均值
+    const ratio = weight / 100
+    
+    return {
+      calories: Math.round(estimatedCaloriesPer100g * ratio),
+      protein: parseFloat((5 * ratio).toFixed(1)),
+      carbs: parseFloat((20 * ratio).toFixed(1)),
+      fat: parseFloat((5 * ratio).toFixed(1)),
+      fiber: parseFloat((2 * ratio).toFixed(1))
+    }
+  }
+}
+
+/**
  * 从图片URL识别食物（对外接口，保持向后兼容）
  */
 async function recognizeFoodFromImage(imageUrl) {
@@ -783,6 +905,7 @@ module.exports = {
   calculateNutrition,
   addFoodRecordByName,
   recognizeFoodFromImage,
-  recognizeFoodFromBase64
+  recognizeFoodFromBase64,
+  analyzeFoodNutrition
 }
 

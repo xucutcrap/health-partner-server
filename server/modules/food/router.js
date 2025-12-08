@@ -103,5 +103,19 @@ router.post('/quick-add', handle(async (ctx) => {
   return success(result)
 }))
 
-module.exports = router
+/**
+ * 分析食物营养成分（使用AI）
+ * POST /api/v1/food/analyze
+ * Body: { foodName, weight }
+ */
+router.post('/analyze', handle(async (ctx) => {
+  const { foodName, weight } = ctx.request.body
+  if (!foodName || !weight) {
+    return ctx.throw(400, 'foodName 和 weight 不能为空')
+  }
 
+  const result = await foodService.analyzeFoodNutrition(foodName, parseFloat(weight))
+  return success(result)
+}))
+
+module.exports = router

@@ -41,7 +41,14 @@ app.use(Middleware.responseFormatter)
 app.use(routers.routes()).use(routers.allowedMethods())
 
 // 监听启动端口
-app.listen( config.port )
+const server = app.listen(config.port)
+
+// 设置服务器超时时间为10分钟（600秒），支持AI识别等长时间请求
+server.timeout = 600000 // 10分钟
+server.keepAliveTimeout = 610000 // 略大于timeout
+server.headersTimeout = 620000 // 略大于keepAliveTimeout
+
 console.log(`🚀 Yoga Server is running at http://localhost:${config.port}`)
 console.log(`📖 API Documentation: http://localhost:${config.port}/api`)
 console.log(`💊 Health Check: http://localhost:${config.port}/health`)
+console.log(`⏱️  Server Timeout: ${server.timeout / 1000}s`)
