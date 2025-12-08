@@ -431,4 +431,54 @@ router.get('/stats', handle(async (ctx) => {
   return success(result)
 }))
 
+/**
+ * 添加或更新体重记录
+ * POST /api/v1/user/weight
+ */
+router.post('/weight', handle(async (ctx) => {
+  const { openId, weight, recordDate } = ctx.request.body
+  if (!openId || !weight || !recordDate) {
+    return ctx.throw(400, '参数不完整')
+  }
+  
+  const weightModule = require('./weight')
+  const result = await weightModule.saveWeightRecord(openId, weight, recordDate)
+  return success(result.data, result.message)
+}))
+
+/**
+ * 查询指定月份的体重记录
+ * GET /api/v1/user/weight/month?openId=xxx&year=2025&month=12
+ */
+router.get('/weight/month', handle(async (ctx) => {
+  const { openId, year, month } = ctx.query
+  if (!openId || !year || !month) {
+    return ctx.throw(400, '参数不完整')
+  }
+  
+  const weightModule = require('./weight')
+  const result = await weightModule.getWeightRecordsByMonth(
+    openId, 
+    parseInt(year), 
+    parseInt(month)
+  )
+  return success(result.data)
+}))
+
+/**
+ * 删除体重记录
+ * DELETE /api/v1/user/weight/:id?openId=xxx
+ */
+router.delete('/weight/:id', handle(async (ctx) => {
+  const { id } = ctx.params
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  
+  const weightModule = require('./weight')
+  const result = await weightModule.deleteWeightRecord(openId, parseInt(id))
+  return success(null, result.message)
+}))
+
 module.exports = router
