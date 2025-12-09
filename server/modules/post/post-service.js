@@ -289,6 +289,7 @@ module.exports = {
   toggleLike,
   getPostComments,
   addComment,
-  deleteComment
+  deleteComment,
+  getPowerEnable: getCommentEnabled
 }
 

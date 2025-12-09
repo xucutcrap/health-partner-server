@@ -21,6 +21,15 @@ router.post('/create', handle(async (ctx) => {
 }))
 
 /**
+ * 获取功能开关
+ * GET /api/v1/post/power-enable
+ */
+router.get('/power-enable', handle(async (ctx) => {
+  const result = await postService.getPowerEnable()
+  return success(result)
+}))
+
+/**
  * 获取帖子列表
  * GET /api/v1/post/list?page=1&pageSize=20&openId=xxx
  */
