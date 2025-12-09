@@ -34,10 +34,6 @@ async function createPost(openId, postData) {
     throw new BusinessError('openId 不能为空')
   }
   
-  if (!postData.content || postData.content.trim() === '') {
-    throw new BusinessError('帖子内容不能为空')
-  }
-  
   const user = await userModel.findByOpenId(openId)
   if (!user) {
     throw new BusinessError('用户不存在')
