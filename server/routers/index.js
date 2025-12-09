@@ -16,6 +16,7 @@ const foodRouter = require('../modules/food/router')
 const postRouter = require('../modules/post').router
 // 引入运动模块路由
 const exerciseRouter = require('../modules/exercise/router')
+const measurementRouter = require('../modules/measurement/router')
 
 /**
  * 图片上传接口
@@ -41,6 +42,7 @@ router.use('/api/v1/user', userRouter.routes(), userRouter.allowedMethods())
 router.use('/api/v1/food', foodRouter.routes(), foodRouter.allowedMethods())
 router.use('/api/v1/post', postRouter.routes(), postRouter.allowedMethods())
 router.use('/api/v1/exercise', exerciseRouter.routes(), exerciseRouter.allowedMethods())
+router.use('/api/v1/measurement', measurementRouter.routes(), measurementRouter.allowedMethods())
 
 // 健康检查接口
 router.get('/health', async (ctx) => {

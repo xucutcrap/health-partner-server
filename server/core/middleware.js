@@ -3,7 +3,7 @@
  */
 const jwt = require('jsonwebtoken')
 const config = require('../../config')
-const { response } = require('./response')
+const response = require('./response')
 
 /**
  * 错误处理中间件
