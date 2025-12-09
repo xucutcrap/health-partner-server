@@ -134,9 +134,20 @@ async function getUserProfile(openId) {
   
   const profile = await profileModel.findByUserId(user.id)
   
+  // 获取最近一次体重记录（代替档案中的体重）
+  const latestWeightRecord = await healthRecordModel.findByUserId(user.id, {
+    recordType: 'weight',
+    limit: 1
+  })
+  
+  // 如果有体重记录，使用最新记录；否则使用档案体重
+  const currentWeight = (latestWeightRecord && latestWeightRecord.length > 0) 
+    ? parseFloat(latestWeightRecord[0].value) 
+    : (profile?.weight || null)
+
   return {
     height: profile?.height || null,
-    weight: profile?.weight || null,
+    weight: currentWeight,
     age: profile?.age || null,
     gender: profile?.gender || '男'
   }
@@ -607,6 +618,20 @@ async function getGoalPageData(openId, tempParams = {}) {
   if (!profile || !profile.height || !profile.weight) {
     throw new BusinessError('请先完善健康档案信息')
   }
+
+  // 获取最近一次体重记录（代替档案中的体重）
+  const latestWeightRecord = await healthRecordModel.findByUserId(user.id, {
+    recordType: 'weight',
+    limit: 1
+  })
+  
+  // 如果有体重记录，使用最新记录；否则使用档案体重
+  const currentWeight = (latestWeightRecord && latestWeightRecord.length > 0) 
+    ? parseFloat(latestWeightRecord[0].value) 
+    : profile.weight
+  
+  // 更新 profile 对象中的 weight，以便后续计算使用最新的数据
+  profile.weight = currentWeight
   
   // 获取用户目标
   const goals = await goalModel.findByUserId(user.id)
