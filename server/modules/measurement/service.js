@@ -18,13 +18,13 @@ async function saveMeasurement(openId, data) {
 
   const { date, type, value } = data
   
-  if (!['bust', 'waist', 'hip'].includes(type)) {
+  if (!['bust', 'waist', 'hip', 'arm', 'thigh', 'calf'].includes(type)) {
     throw new BusinessError('无效的围度类型')
   }
 
   // 构造健康记录数据
   // 复用 health_records 表
-  // record_type 存 'bust', 'waist', 'hip'
+  // record_type 存 'bust', 'waist', 'hip', 'arm', 'thigh', 'calf'
   // unit 默认为 'cm'
   const recordData = {
     userId: user.id,
@@ -55,7 +55,7 @@ async function getMeasurements(openId, startDate, endDate) {
 
   // 过滤出围度数据
   const measurementRecords = records.filter(r => 
-    ['bust', 'waist', 'hip'].includes(r.record_type)
+    ['bust', 'waist', 'hip', 'arm', 'thigh', 'calf'].includes(r.record_type)
   )
 
   return measurementRecords
@@ -78,17 +78,20 @@ async function getDailyMeasurements(openId, date) {
     endDate: queryDate
   })
 
-  // 整理为 { bust: val, waist: val, hip: val } 结构
+  // 整理为 { bust: val, waist: val, hip: val, arm: val, thigh: val, calf: val } 结构
   // 如果有多次记录，取最新的一条
   // records 默认是按时间倒序的，所以取第一个匹配的即可
   const result = {
     bust: null,
     waist: null,
-    hip: null
+    hip: null,
+    arm: null,
+    thigh: null,
+    calf: null
   }
 
   for (const r of records) {
-    if (result[r.record_type] === null && ['bust', 'waist', 'hip'].includes(r.record_type)) {
+    if (result[r.record_type] === null && ['bust', 'waist', 'hip', 'arm', 'thigh', 'calf'].includes(r.record_type)) {
       result[r.record_type] = r.value
     }
   }
