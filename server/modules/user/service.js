@@ -670,28 +670,13 @@ async function getGoalPageData(openId, tempParams = {}) {
 }
 
 /**
- * 根据运动类型和时长计算卡路里
- * 不同运动类型的卡路里消耗（每分钟）：
- * - 跑步：约 11 卡/分钟
- * - 游泳：约 13.5 卡/分钟
- * - 骑行：约 9 卡/分钟
- * - 瑜伽：约 4 卡/分钟
- * - 力量训练：约 6 卡/分钟
- * - 跳绳：约 11 卡/分钟
+ * 根据运动类型、时长和卡路里参数计算卡路里
+ * 如果前端提供了 caloriesPerMinute，使用前端的值；否则使用默认值
  */
-function calculateExerciseCalories(exerciseType, duration, distance = null) {
-  const caloriesPerMinute = {
-    '跑步': 11,
-    '游泳': 13.5,
-    '骑行': 9,
-    '瑜伽': 4,
-    '力量训练': 6,
-    '跳绳': 11
-  }
-  
-  const baseCalories = caloriesPerMinute[exerciseType] || 8
-  let calories = baseCalories * duration
-  
+function calculateExerciseCalories(exerciseType, duration, distance = null, caloriesPerMinute = null) {
+
+  let calories = caloriesPerMinute * duration
+
   // 如果有距离，可以基于距离进行微调（可选）
   // 例如：跑步每公里约消耗 60-70 卡，骑行每公里约消耗 30-40 卡
   if (distance && distance > 0) {
@@ -703,7 +688,7 @@ function calculateExerciseCalories(exerciseType, duration, distance = null) {
       calories = Math.max(calories, distance * 35)
     }
   }
-  
+
   return Math.round(calories)
 }
 
@@ -797,26 +782,26 @@ async function addExerciseRecord(openId, recordData) {
   if (!openId) {
     throw new BusinessError('openId 不能为空')
   }
-  
-  const { exerciseType, duration, distance } = recordData
-  
+
+  const { exerciseType, duration, distance, caloriesPerMinute } = recordData
+
   if (!exerciseType || !duration) {
     throw new BusinessError('运动类型和时长不能为空')
   }
-  
-  // 验证距离（如果需要）
-  if (needsDistance(exerciseType) && (!distance || distance <= 0)) {
-    throw new BusinessError(`${exerciseType}需要填写距离`)
-  }
-  
+
+  // 验证距离（如果需要） - 项目不再限制必须填距离
+  // if (needsDistance(exerciseType) && (!distance || distance <= 0)) {
+  //   throw new BusinessError(`${exerciseType}需要填写距离`)
+  // }
+
   const user = await userModel.findByOpenId(openId)
   if (!user) {
     throw new BusinessError('用户不存在')
   }
-  
-  // 自动计算卡路里
-  const calories = calculateExerciseCalories(exerciseType, duration, distance)
-  
+
+  // 自动计算卡路里（支持前端传入卡路里参数）
+  const calories = calculateExerciseCalories(exerciseType, duration, distance, caloriesPerMinute)
+
   const result = await exerciseModel.create({
     userId: user.id,
     exerciseType,
@@ -825,7 +810,7 @@ async function addExerciseRecord(openId, recordData) {
     distance: distance ? parseFloat(distance) : null,
     recordDate: recordData.recordDate || new Date().toISOString().split('T')[0]
   })
-  
+
   return {
     id: result.insertId || result.id,
     exerciseType,

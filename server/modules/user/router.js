@@ -300,15 +300,16 @@ router.get('/exercise-week', handle(async (ctx) => {
  * POST /api/v1/user/exercise-records
  */
 router.post('/exercise-records', handle(async (ctx) => {
-  const { openId, exerciseType, duration, distance, recordDate } = ctx.request.body
+  const { openId, exerciseType, duration, distance, caloriesPerMinute, recordDate } = ctx.request.body
   if (!openId || !exerciseType || !duration) {
     return ctx.throw(400, '参数不完整')
   }
-  
+
   const result = await userService.addExerciseRecord(openId, {
     exerciseType,
     duration,
     distance,
+    caloriesPerMinute,
     recordDate
   })
   return success(result)
