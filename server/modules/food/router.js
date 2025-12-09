@@ -109,13 +109,35 @@ router.post('/quick-add', handle(async (ctx) => {
  * Body: { foodName, weight }
  */
 router.post('/analyze', handle(async (ctx) => {
-  const { foodName, weight } = ctx.request.body
+  const { foodName, weight } = ctx.request.body;
+
   if (!foodName || !weight) {
-    return ctx.throw(400, 'foodName 和 weight 不能为空')
+    return ctx.throw(400, 'foodName 和 weight 不能为空');
   }
 
-  const result = await foodService.analyzeFoodNutrition(foodName, parseFloat(weight))
-  return success(result)
-}))
+  const result = await foodService.analyzeFoodNutrition(foodName, parseFloat(weight));
+  return success(result);
+}));
+
+/**
+ * POST /api/v1/food/recognize-text
+ * 文本识别食物
+ */
+router.post('/recognize-text', handle(async (ctx) => {
+  const { text } = ctx.request.body;
+
+  if (!text) {
+    return ctx.throw(400, '缺少文本内容');
+  }
+
+  const result = await foodService.recognizeFoodFromText(text);
+  
+  // 如果服务返回的是带code的格式，需要判断
+  if (result.code !== 0) {
+    return ctx.throw(500, result.message || '识别失败');
+  }
+  
+  return success(result.data);
+}));
 
 module.exports = router
