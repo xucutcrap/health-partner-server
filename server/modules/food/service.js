@@ -906,7 +906,7 @@ async function recognizeFoodFromText(text) {
   const config = require('../../../config')
   try {
     // 构建提示词
-    const systemPrompt = "你是一名专业的营养师。用户会用一句话描述他吃了什么食物，你需要识别出所有食物并分析营养成分。输出必须是纯净的JSON对象，格式：{\"meal_name\": \"中文描述\", \"overview\": {\"estimated_total_calories\": 数字, \"total_protein_g\": 数字, \"total_carbs_g\": 数字, \"total_fat_g\": 数字}, \"health_score\": 数字(1-10), \"ingredients\": [{\"icon\": \"表情符号\", \"name\": \"食物名称\", \"calories\": 数字, \"estimated_weight_g\": 数字}]}。无需任何其他文字。";
+    const systemPrompt = "你是一名专业的营养师。用户会用一句话描述他吃了什么食物，你需要识别出所有食物并分析营养成分。输出必须是纯净的JSON对象，格式：{\"meal_name\": \"中文描述\", \"overview\": {\"estimated_total_calories\": 数字, \"total_protein_g\": 数字, \"total_carbs_g\": 数字, \"total_fat_g\": 数字}, \"health_score\": 数字(1-10), \"ingredients\": [{\"icon\": \"表情符号\", \"name\": \"食物名称\", \"calories\": 数字, \"estimated_weight_g\": 数字, \"protein_g\": 数字, \"fat_g\": 数字, \"carbs_g\": 数字}]}。无需任何其他文字。";
 
     const userPrompt = `用户描述：${text}`;
 
@@ -944,22 +944,31 @@ async function recognizeFoodFromText(text) {
       name: ingredient.name,
       weight: ingredient.estimated_weight_g || 100,
       calorie: ingredient.calories || 0,
-      protein: (ingredient.calories * 0.15) / 4,
-      carbs: (ingredient.calories * 0.55) / 4,
-      fat: (ingredient.calories * 0.30) / 9
+      protein: ingredient.protein_g || 0,
+      carbs: ingredient.carbs_g || 0,
+      fat: ingredient.fat_g || 0
     }));
+
+    // 计算总营养（确保数据一致性，重新累加）
+    const totalNutrition = foods.reduce((acc, food) => {
+      acc.totalCalories += food.calorie;
+      acc.totalProtein += food.protein;
+      acc.totalCarbs += food.carbs;
+      acc.totalFat += food.fat;
+      return acc;
+    }, { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0 });
+
+    // 保留一位小数
+    totalNutrition.totalProtein = parseFloat(totalNutrition.totalProtein.toFixed(1));
+    totalNutrition.totalCarbs = parseFloat(totalNutrition.totalCarbs.toFixed(1));
+    totalNutrition.totalFat = parseFloat(totalNutrition.totalFat.toFixed(1));
 
     return {
       code: 0,
       message: 'success',
       data: {
         foods,
-        totalNutrition: {
-          totalCalories: aiResult.overview.estimated_total_calories,
-          totalProtein: aiResult.overview.total_protein_g,
-          totalCarbs: aiResult.overview.total_carbs_g,
-          totalFat: aiResult.overview.total_fat_g
-        }
+        totalNutrition
       }
     };
   } catch (error) {
