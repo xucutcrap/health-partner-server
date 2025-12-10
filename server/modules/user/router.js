@@ -482,4 +482,15 @@ router.delete('/weight/:id', handle(async (ctx) => {
   return success(null, result.message)
 }))
 
+// 添加新路由
+router.get('/weight/latest', handle(async (ctx) => {
+  const { openId, limit = 10 } = ctx.query;
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空');
+  }
+  const weightModule = require('./weight');
+  const result = await weightModule.getLatestWeightRecords(openId, parseInt(limit));
+  return success(result.data);
+}));
+
 module.exports = router

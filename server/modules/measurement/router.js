@@ -3,6 +3,7 @@
  */
 const service = require('./service')
 const Router = require('koa-router')
+
 const router = new Router()
 
 // 保存围度记录
@@ -33,4 +34,21 @@ router.post('/delete', async (ctx) => {
   ctx.body = result
 })
 
+// 添加新路由
+router.get('/latest', async (ctx) => {
+  const { openId, limit = 10 } = ctx.query;
+  try {
+    const result = await service.getLatestMeasurements(openId, parseInt(limit));
+    ctx.body = {
+      code: 200,
+      success: true,
+      data: result
+    };
+  } catch (error) {
+    ctx.body = {
+      success: false,
+      message: error.message || '获取围度记录失败'
+    };
+  }
+});
 module.exports = router

@@ -159,8 +159,54 @@ async function deleteWeightRecord(openId, recordId) {
   }
 }
 
+/**
+ * 获取最近的体重记录
+ * @param {string} openId - 用户openId
+ * @param {number} limit - 返回记录数量
+ * @returns {Promise<Array>}
+ */
+async function getLatestWeightRecords(openId, limit = 10) {
+  try {
+    // 1. 获取用户
+    const user = await userModel.findByOpenId(openId);
+    if (!user) {
+      throw new Error('用户不存在');
+    }
+
+    const userId = user.id;
+
+    // 2. 查询最近的体重记录
+    const sql = `SELECT 
+        id, record_date as date, value as weight, unit
+      FROM health_records 
+      WHERE user_id = ? AND record_type = 'weight' 
+      ORDER BY record_date DESC, record_time DESC 
+      LIMIT ?`;
+    
+    const records = await healthRecordDb.query(sql, [userId, limit]);
+
+    // 3. 转换数据格式
+    const result = records.map(record => ({
+      id: record.id,
+      date: record.date,
+      weight: record.weight,
+      unit: record.unit
+    })).reverse(); // 按时间正序返回
+
+    return {
+      success: true,
+      data: result
+    };
+  } catch (error) {
+    console.error('获取最近体重记录失败:', error);
+    throw error;
+  }
+}
+
+// 导出新方法
 module.exports = {
   saveWeightRecord,
   getWeightRecordsByMonth,
-  deleteWeightRecord
+  deleteWeightRecord,
+  getLatestWeightRecords
 };

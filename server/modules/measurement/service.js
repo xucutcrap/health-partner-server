@@ -127,9 +127,55 @@ async function deleteMeasurement(openId, date, type) {
   return { deleted: true }
 }
 
+/**
+ * 获取最近的围度记录
+ * @param {string} openId 用户OpenID
+ * @param {number} limit 返回记录数量
+ */
+async function getLatestMeasurements(openId, limit = 10) {
+  const user = await userModel.findByOpenId(openId);
+  if (!user) {
+    throw new BusinessError('用户不存在');
+  }
+
+  // 定义所有围度类型
+  const measurementTypes = ['bust', 'waist', 'hip', 'arm', 'thigh', 'calf'];
+  
+  // 初始化结果对象
+  const result = {
+    bust: [],
+    waist: [],
+    hip: [],
+    arm: [],
+    thigh: [],
+    calf: []
+  };
+  
+  // 为每种围度类型单独查询最近的记录
+  for (const type of measurementTypes) {
+    const typeRecords = await healthRecordModel.findByUserId(user.id, {
+      excludeSteps: false,
+      recordType: type, // 只查询当前围度类型
+      limit: limit // 每种类型获取最近limit条记录
+    });
+    
+    // 整理数据格式
+    result[type] = typeRecords.map(record => ({
+      id: record.id,
+      date: record.record_date,
+      value: record.value,
+      unit: record.unit
+    }));
+  }
+
+  return result;
+}
+
+// 导出新方法
 module.exports = {
   saveMeasurement,
   getMeasurements,
   getDailyMeasurements,
-  deleteMeasurement
+  deleteMeasurement,
+  getLatestMeasurements
 }
