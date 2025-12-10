@@ -185,7 +185,7 @@ async function updateUserProfile(openId, profileData) {
   
   return {
     height: profile.height,
-    weight: profile.weight,
+    originalWeight: profile.weight,
     age: profile.age,
     gender: profile.gender,
     bmi: bmi ? parseFloat(bmi.toFixed(1)) : null
