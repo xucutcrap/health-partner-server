@@ -148,6 +148,7 @@ async function getUserProfile(openId) {
   return {
     height: profile?.height || null,
     weight: currentWeight,
+    originalWeight: profile?.weight || null,
     age: profile?.age || null,
     gender: profile?.gender || '男'
   }
