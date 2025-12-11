@@ -160,12 +160,27 @@ async function getLatestMeasurements(openId, limit = 10) {
     });
     
     // 整理数据格式
-    result[type] = typeRecords.map(record => ({
-      id: record.id,
-      date: record.record_date,
-      value: record.value,
-      unit: record.unit
-    }));
+    result[type] = typeRecords.map(record => {
+      // 格式化日期为 mm-dd
+      let dateVal = record.record_date;
+      let dateStr = '';
+      
+      try {
+        const month = String(dateVal.getMonth() + 1).padStart(2, '0');
+        const day = String(dateVal.getDate()).padStart(2, '0');
+        dateStr = `${month}.${day}`; 
+      } catch (e) {
+        console.error('日期格式化错误:', e);
+        dateStr = '未知日期';
+      }
+      
+      return {
+        id: record.id,
+        date: dateStr,
+        value: record.value,
+        unit: record.unit
+      };
+    });
   }
 
   return result;

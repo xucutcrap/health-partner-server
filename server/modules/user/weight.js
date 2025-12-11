@@ -177,7 +177,7 @@ async function getLatestWeightRecords(openId, limit = 10) {
 
     // 2. 查询最近的体重记录
     const sql = `SELECT 
-        id, record_date as date, value as weight, unit
+        id, DATE_FORMAT(record_date, '%m.%d') as date, value as weight, unit
       FROM health_records 
       WHERE user_id = ? AND record_type = 'weight' 
       ORDER BY record_date DESC, record_time DESC 
