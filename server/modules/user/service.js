@@ -9,6 +9,7 @@ const recordModel = require('./record-model')
 const healthRecordModel = require('./health-record-model')
 const exerciseModel = require('./exercise-model')
 const dietModel = require('./diet-model')
+const shareModel = require('./share-model')
 const foodService = require('../food/service')
 const axios = require('axios')
 const config = require('../../../config')
@@ -157,7 +158,10 @@ async function getUserProfile(openId) {
 /**
  * 更新用户健康档案
  */
-async function updateUserProfile(openId, profileData) {
+/**
+ * 更新用户健康档案
+ */
+async function updateUserProfile(openId, profileData, referrerId = null) {
   if (!openId) {
     throw new BusinessError('openId 不能为空')
   }
@@ -182,6 +186,38 @@ async function updateUserProfile(openId, profileData) {
   }
   
   const profile = await profileModel.createOrUpdateByUserId(user.id, updateData)
+  
+  // 处理推荐关系
+  if (referrerId) {
+    try {
+      // 简单验证：不能推荐自己
+      // 需要先根据 openId 找到 referrerUserId? 
+      // 假设传入的 referrerId 就是用户的 openId (前端传参通常是 openId)
+      // 我们需要根据 referrerId (Assuming it's an OpenID) find the user.
+      // Wait, let's assume referrerId passed from frontend is the REFERRER'S USER ID or OPENID?
+      // Usually easier to pass OpenID in share link, but DB uses UserID for FKs.
+      // Let's assume referrerId is OPENID for security/ease of frontend.
+      
+      if (referrerId !== openId) {
+        const referrerUser = await userModel.findByOpenId(referrerId)
+        if (referrerUser) {
+           // 查找最近的分享记录作为归因 (也可以创建一个默认的)
+           let shareId = await shareModel.getLatestShareIdByUserId(referrerUser.id)
+           // 如果找不到分享记录（可能是老数据或直接转发），可以先创建一个“系统补录”的分享记录或者强制要求有shareId
+           // 这里为了健壮性，如果没有找到，就创建一个 ID
+           if (!shareId) {
+             const newShare = await shareModel.createShareRecord(referrerUser.id, 1, 'system_auto')
+             shareId = newShare.id
+           }
+           
+           await shareModel.createReferralRecord(shareId, user.id)
+        }
+      }
+    } catch (err) {
+      console.error('Process referral error:', err)
+      // 推荐记录失败不应影响主流程
+    }
+  }
   
   return {
     height: profile.height,
@@ -1175,6 +1211,49 @@ async function getUserStats(openId) {
   }
 }
 
+
+/**
+ * 记录用户分享行为
+ * @param {string} openId 
+ * @param {number} scene 1:好友, 2:朋友圈
+ * @param {string} page 
+ */
+async function recordShare(openId, scene = 1, page = 'pages/index/index') {
+  if (!openId) {
+    throw new BusinessError('openId 不能为空')
+  }
+
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new BusinessError('用户不存在')
+  }
+
+  const result = await shareModel.createShareRecord(user.id, scene, page)
+  return result
+}
+
+/**
+ * 获取用户分享状态（用于判定是否解锁功能）
+ * @param {string} openId 
+ */
+async function getUserShareStatus(openId) {
+    if (!openId) {
+      throw new BusinessError('openId 不能为空')
+    }
+  
+    const user = await userModel.findByOpenId(openId)
+    // 如果用户不存在，可能刚进来，默认未解锁
+    if (!user) {
+      return { hasShared: false, count: 0 }
+    }
+  
+    const count = await shareModel.getShareCount(user.id)
+    return {
+      hasShared: count > 0,
+      count: count
+    }
+}
+
 module.exports = {
   getOpenIdByCode,
   getUserInfoByOpenId,
@@ -1200,5 +1279,7 @@ module.exports = {
   addDietRecord,
   deleteDietRecord,
   getTodayDietStats,
-  getUserStats
+  getUserStats,
+  recordShare,
+  getUserShareStatus
 }

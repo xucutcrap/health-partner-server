@@ -92,7 +92,7 @@ router.get('/profile', handle(async (ctx) => {
  * POST /api/v1/user/profile
  */
 router.post('/profile', handle(async (ctx) => {
-  const { openId, height, weight, age, gender } = ctx.request.body
+  const { openId, height, weight, age, gender, referrerId } = ctx.request.body
   if (!openId) {
     return ctx.throw(400, 'openId 不能为空')
   }
@@ -101,7 +101,7 @@ router.post('/profile', handle(async (ctx) => {
     weight,
     age,
     gender
-  })
+  }, referrerId)
   return success(result)
 }))
 
@@ -492,5 +492,31 @@ router.get('/weight/latest', handle(async (ctx) => {
   const result = await weightModule.getLatestWeightRecords(openId, parseInt(limit));
   return success(result.data);
 }));
+
+/**
+ * 记录分享
+ * POST /api/v1/user/share
+ */
+router.post('/share', handle(async (ctx) => {
+  const { openId, scene, page } = ctx.request.body
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await userService.recordShare(openId, scene, page)
+  return success(result)
+}))
+
+/**
+ * 获取分享状态
+ * GET /api/v1/user/share/status
+ */
+router.get('/share/status', handle(async (ctx) => {
+  const { openId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await userService.getUserShareStatus(openId)
+  return success(result)
+}))
 
 module.exports = router

@@ -113,3 +113,31 @@ CREATE TABLE IF NOT EXISTS `water_records` (
   KEY `idx_water_records_date` (`record_date`),
   CONSTRAINT `fk_water_records_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='饮水记录表';
+
+-- 8. 分享记录表 (share_records)
+CREATE TABLE IF NOT EXISTS `user_shares` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL COMMENT '用户ID',
+  `share_scene` tinyint(2) NOT NULL COMMENT '分享场景：1-分享给好友，2-分享到朋友圈',
+  `share_page` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '分享的页面路径，如：pages/index/index',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`) COMMENT '用户索引',
+  KEY `idx_created_at` (`created_at`) COMMENT '时间索引',
+  KEY `idx_share_scene` (`share_scene`) COMMENT '分享场景索引',
+  CONSTRAINT `fk_user_shares_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户分享记录表';
+
+--9. 分享推荐新用户记录表（share_referrals）
+CREATE TABLE IF NOT EXISTS `share_referrals` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `share_id` int(11) NOT NULL COMMENT '对应的分享记录ID，来自user_shares表的id',
+  `referred_user_id` int(11) NOT NULL COMMENT '通过分享链接注册的新用户ID',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_referred_user_id` (`referred_user_id`) COMMENT '确保每个新用户只能被记录一次（假设一个用户只能通过一个分享链接注册）',
+  KEY `idx_share_id` (`share_id`) COMMENT '分享记录索引，方便统计每次分享带来的用户',
+  KEY `idx_created_at` (`created_at`) COMMENT '时间索引',
+  CONSTRAINT `fk_share_referrals_share_id` FOREIGN KEY (`share_id`) REFERENCES `user_shares` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_share_referrals_referred_user_id` FOREIGN KEY (`referred_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='分享推荐新用户记录表';
