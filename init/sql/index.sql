@@ -141,3 +141,15 @@ CREATE TABLE IF NOT EXISTS `share_referrals` (
   CONSTRAINT `fk_share_referrals_share_id` FOREIGN KEY (`share_id`) REFERENCES `user_shares` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_share_referrals_referred_user_id` FOREIGN KEY (`referred_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='分享推荐新用户记录表';
+
+--10. 用户反馈表（feedback）
+CREATE TABLE `feedback` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `content` text NOT NULL COMMENT '反馈内容',
+  `contact` varchar(100) DEFAULT NULL COMMENT '联系方式',
+  `user_id` int(11) DEFAULT NULL COMMENT '用户ID',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_create_time` (`create_time`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户反馈表';
