@@ -30,7 +30,7 @@ async function recognizeExerciseFromText(text) {
 
   try {
     // 构建提示词 - 简化版
-    const systemPrompt = "识别运动,返回JSON: {\"exercise_name\":\"运动名称\",\"duration_minutes\":数字,\"calories\":数字,\"intensity\":\"低/中/高\",\"notes\":\"建议\"}"
+    const systemPrompt = "你是一名专业的健身教练。用户会用一句话描述他的运动情况，你需要识别出运动类型、时长（分钟）和估算的卡路里消耗。输出必须是纯净的JSON对象，格式：{\"exercise_name\": \"标准运动名称(如：跑步、游泳、骑行等)\", \"duration_minutes\": 数字, \"calories\": 数字, \"intensity\": \"低/中/高\", \"notes\": \"简短建议\"}。如果用户没有提供时长，请根据经验估算一个合理值（如30分钟）。无需任何其他文字。"
 
     console.log('Calling Doubao API for exercise:', text)
 

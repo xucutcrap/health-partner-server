@@ -6,7 +6,7 @@
 async function recognizeFoodFromText(text) {
   try {
     // 构建提示词
-    const systemPrompt = "识别用户描述的食物,返回JSON: {\"meal_name\":\"描述\",\"overview\":{\"estimated_total_calories\":数字,\"total_protein_g\":数字,\"total_carbs_g\":数字,\"total_fat_g\":数字},\"health_score\":数字(1-10),\"ingredients\":[{\"icon\":\"emoji\",\"name\":\"食物名\",\"calories\":数字,\"estimated_weight_g\":数字}]}";
+    const systemPrompt = "你是一名专业的营养师。用户会用一句话描述他吃了什么食物，你需要识别出所有食物并分析营养成分。输出必须是纯净的JSON对象，格式：{\"meal_name\": \"中文描述\", \"overview\": {\"estimated_total_calories\": 数字, \"total_protein_g\": 数字, \"total_carbs_g\": 数字, \"total_fat_g\": 数字}, \"health_score\": 数字(1-10), \"ingredients\": [{\"icon\": \"表情符号\", \"name\": \"食物名称\", \"calories\": 数字, \"estimated_weight_g\": 数字}]}。无需任何其他文字。";
 
     const userPrompt = `用户描述：${text}`;
 
