@@ -92,7 +92,7 @@ router.get('/profile', handle(async (ctx) => {
  * POST /api/v1/user/profile
  */
 router.post('/profile', handle(async (ctx) => {
-  const { openId, height, weight, age, gender, referrerId } = ctx.request.body
+  const { openId, height, weight, age, gender, referrerId, channel } = ctx.request.body
   if (!openId) {
     return ctx.throw(400, 'openId 不能为空')
   }
@@ -101,7 +101,7 @@ router.post('/profile', handle(async (ctx) => {
     weight,
     age,
     gender
-  }, referrerId)
+  }, referrerId, channel)
   return success(result)
 }))
 

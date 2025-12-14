@@ -161,7 +161,7 @@ async function getUserProfile(openId) {
 /**
  * 更新用户健康档案
  */
-async function updateUserProfile(openId, profileData, referrerId = null) {
+async function updateUserProfile(openId, profileData, referrerId = null, channel = null) {
   if (!openId) {
     throw new BusinessError('openId 不能为空')
   }
@@ -171,7 +171,7 @@ async function updateUserProfile(openId, profileData, referrerId = null) {
     throw new BusinessError('用户不存在')
   }
   
-  // 计算 BMI（后端计算，确保准确性）
+  // 计算 BMI(后端计算,确保准确性)
   let bmi = null
   if (profileData.height && profileData.weight) {
     const heightInMeters = profileData.height / 100
@@ -190,27 +190,20 @@ async function updateUserProfile(openId, profileData, referrerId = null) {
   // 处理推荐关系
   if (referrerId) {
     try {
-      // 简单验证：不能推荐自己
-      // 需要先根据 openId 找到 referrerUserId? 
-      // 假设传入的 referrerId 就是用户的 openId (前端传参通常是 openId)
-      // 我们需要根据 referrerId (Assuming it's an OpenID) find the user.
-      // Wait, let's assume referrerId passed from frontend is the REFERRER'S USER ID or OPENID?
-      // Usually easier to pass OpenID in share link, but DB uses UserID for FKs.
-      // Let's assume referrerId is OPENID for security/ease of frontend.
-      
+      // 简单验证:不能推荐自己
       if (referrerId !== openId) {
         const referrerUser = await userModel.findByOpenId(referrerId)
         if (referrerUser) {
-           // 查找最近的分享记录作为归因 (也可以创建一个默认的)
+           // 查找最近的分享记录作为归因
            let shareId = await shareModel.getLatestShareIdByUserId(referrerUser.id)
-           // 如果找不到分享记录（可能是老数据或直接转发），可以先创建一个“系统补录”的分享记录或者强制要求有shareId
-           // 这里为了健壮性，如果没有找到，就创建一个 ID
+           // 如果找不到分享记录,创建一个系统补录的分享记录
            if (!shareId) {
              const newShare = await shareModel.createShareRecord(referrerUser.id, 1, 'system_auto')
              shareId = newShare.id
            }
            
-           await shareModel.createReferralRecord(shareId, user.id)
+           // 创建推荐记录,传入渠道参数
+           await shareModel.createReferralRecord(shareId, user.id, channel)
         }
       }
     } catch (err) {

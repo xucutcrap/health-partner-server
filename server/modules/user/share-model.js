@@ -38,12 +38,13 @@ async function getShareCount(userId) {
 }
 
 /**
- * 创建推荐记录（新用户通过分享注册）
+ * 创建推荐记录(新用户通过分享注册)
  * @param {number} shareId - 分享记录ID (user_shares.id)
  * @param {number} referredUserId - 被推荐人ID (users.id)
+ * @param {string} channel - 渠道来源: wechat/xiaohongshu/douyin
  */
-async function createReferralRecord(shareId, referredUserId) {
-  // 检查是否已经记录过（防止重复）
+async function createReferralRecord(shareId, referredUserId, channel = null) {
+  // 检查是否已经记录过(防止重复)
   const checkSql = `
     SELECT id FROM share_referrals WHERE referred_user_id = ?
   `
@@ -54,14 +55,15 @@ async function createReferralRecord(shareId, referredUserId) {
   }
   
   const sql = `
-    INSERT INTO share_referrals (share_id, referred_user_id, created_at)
-    VALUES (?, ?, NOW())
+    INSERT INTO share_referrals (share_id, referred_user_id, channel, created_at)
+    VALUES (?, ?, ?, NOW())
   `
-  const result = await shareDb.query(sql, [shareId, referredUserId])
+  const result = await shareDb.query(sql, [shareId, referredUserId, channel])
   return {
     id: result.insertId,
     shareId,
-    referredUserId
+    referredUserId,
+    channel
   }
 }
 
