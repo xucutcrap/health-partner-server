@@ -99,8 +99,7 @@ async function getWeightRecordsByMonth(openId, year, month) {
     const sql = `SELECT 
         id,
         DATE_FORMAT(record_date, '%Y-%m-%d') as date,
-        value as weight,
-        DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') as createdAt
+        value as weight
        FROM health_records 
        WHERE user_id = ? 
          AND record_type = 'weight' 
