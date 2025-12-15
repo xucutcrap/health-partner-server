@@ -188,10 +188,10 @@ async function updateUserProfile(openId, profileData, referrerId = null, channel
   const profile = await profileModel.createOrUpdateByUserId(user.id, updateData)
   
   // 处理推荐关系
-  if (referrerId) {
+  if (referrerId || channel) {
     try {
-      // 简单验证:不能推荐自己
-      if (referrerId !== openId) {
+      if (referrerId && referrerId !== openId) {
+        // 有推荐人的情况：用户分享
         const referrerUser = await userModel.findByOpenId(referrerId)
         if (referrerUser) {
            // 查找最近的分享记录作为归因
@@ -205,6 +205,10 @@ async function updateUserProfile(openId, profileData, referrerId = null, channel
            // 创建推荐记录,传入渠道参数
            await shareModel.createReferralRecord(shareId, user.id, channel)
         }
+      } else if (!referrerId && channel) {
+        // 只有渠道没有推荐人的情况：官方渠道推广
+        // shareId 为 null 表示官方渠道，无具体分享人
+        await shareModel.createReferralRecord(null, user.id, channel)
       }
     } catch (err) {
       console.error('Process referral error:', err)
