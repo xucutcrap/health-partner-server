@@ -53,12 +53,7 @@ async function getOpenIdByCode(code) {
       nickname: user.nickname || null,
       avatarUrl: user.avatar_url || null,
       // 健康档案信息
-      profile: profile ? {
-        height: profile.height || null,
-        weight: profile.weight || null,
-        age: profile.age || null,
-        gender: profile.gender || '男',
-      } : null
+      profile: !!profile
     }
   } catch (error) {
     if (error.name === 'BusinessError') {
@@ -253,12 +248,6 @@ async function getUserGoals(openId) {
   // 返回格式化的目标数据
   return {
     targetWeight: goals?.target_weight || null,
-    targetExercise: goals?.target_exercise || 30,
-    targetSteps: goals?.target_steps || 10000,
-    targetCalories: goals?.target_calories || null,
-    targetCaloriesBurned: goals?.target_calories_burned || 500,
-    targetCaloriesRestDay: goals?.target_calories_rest_day || null,
-    targetCaloriesExerciseDay: goals?.target_calories_exercise_day || null,
     targetDate: targetDate
   }
 }
@@ -779,9 +768,7 @@ async function getExerciseRecords(openId, options = {}) {
     exerciseType: record.exercise_type,
     duration: record.duration,
     calories: record.calories,
-    distance: record.distance ? parseFloat(record.distance) : null,
     recordDate: record.record_date,
-    createdAt: record.created_at
   }))
 }
 
@@ -925,30 +912,15 @@ async function getDietRecords(openId, options = {}) {
   
   // 格式化返回数据，关联查询食物图标
   const formattedRecords = await Promise.all(records.map(async (record) => {
-    // 通过食物名称查找对应的食物图标
-    let foodIcon = '🍽️' // 默认图标
-    try {
-      const food = await foodModel.findByName(record.food_name)
-      if (food && food.icon) {
-        foodIcon = food.icon
-      }
-    } catch (err) {
-      // 如果查找失败，使用默认图标
-      console.log('查找食物图标失败:', err.message)
-    }
-    
     return {
       id: record.id,
       mealType: record.meal_type,
       foodName: record.food_name,
-      foodIcon: foodIcon,
       calories: record.calories,
       protein: parseFloat(record.protein || 0),
       carbs: parseFloat(record.carbs || 0),
       fat: parseFloat(record.fat || 0),
-      fiber: parseFloat(record.fiber || 0),
-      recordDate: record.record_date,
-      createdAt: record.created_at
+      recordDate: record.record_date
     }
   }))
   

@@ -251,17 +251,16 @@ router.get('/goal-page-data', handle(async (ctx) => {
  * GET /api/v1/user/exercise-records?openId=xxx&exerciseType=xxx&startDate=xxx&endDate=xxx
  */
 router.get('/exercise-records', handle(async (ctx) => {
-  const { openId, exerciseType, startDate, endDate, limit, offset } = ctx.query
+  const { openId, startDate, endDate } = ctx.query
   if (!openId) {
     return ctx.throw(400, 'openId 不能为空')
   }
   
-  const options = {}
-  if (exerciseType) options.exerciseType = exerciseType
-  if (startDate) options.startDate = startDate
-  if (endDate) options.endDate = endDate
-  if (limit) options.limit = parseInt(limit)
-  if (offset) options.offset = parseInt(offset)
+  const options = {
+    openId,
+    startDate,
+    endDate
+  }
   
   const result = await userService.getExerciseRecords(openId, options)
   return success(result)
@@ -332,20 +331,19 @@ router.delete('/exercise-records/:id', handle(async (ctx) => {
 
 /**
  * 获取饮食记录列表
- * GET /api/v1/user/diet-records?openId=xxx&mealType=xxx&startDate=xxx&endDate=xxx
+ * GET /api/v1/user/diet-records?openId=xxx&startDate=xxx&endDate=xxx
  */
 router.get('/diet-records', handle(async (ctx) => {
-  const { openId, mealType, startDate, endDate, limit, offset } = ctx.query
+  const { openId, startDate, endDate } = ctx.query
   if (!openId) {
     return ctx.throw(400, 'openId 不能为空')
   }
   
-  const options = {}
-  if (mealType) options.mealType = mealType
-  if (startDate) options.startDate = startDate
-  if (endDate) options.endDate = endDate
-  if (limit) options.limit = parseInt(limit)
-  if (offset) options.offset = parseInt(offset)
+  const options = {
+    openId,
+    startDate,
+    endDate
+  }
   
   const result = await userService.getDietRecords(openId, options)
   return success(result)
