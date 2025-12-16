@@ -8,21 +8,6 @@ const foodService = require('./service')
 const { handle, success } = response
 
 /**
- * 计算营养信息
- * POST /api/v1/food/calculate
- * Body: { foodId, weightGrams }
- */
-router.post('/calculate', handle(async (ctx) => {
-  const { foodId, weightGrams } = ctx.request.body
-  if (!foodId || !weightGrams) {
-    return ctx.throw(400, 'foodId 和 weightGrams 不能为空')
-  }
-
-  const result = await foodService.calculateNutrition(parseInt(foodId), parseFloat(weightGrams))
-  return success(result)
-}))
-
-/**
  * 食物图片识别
  * POST /api/v1/food/recognize
  * Body: { imageBase64 }

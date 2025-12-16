@@ -7,117 +7,6 @@ const unitModel = require('./unit-model')
 const axios = require('axios')
 
 /**
- * 计算食物的营养信息（根据重量）
- */
-async function calculateNutrition(foodId, weightGrams) {
-  const food = await foodModel.findById(foodId)
-  if (!food) {
-    throw new Error('食物不存在')
-  }
-
-  const ratio = weightGrams / 100
-
-  return {
-    calories: Math.round(parseFloat(food.calories_per_100g) * ratio),
-    protein: parseFloat((parseFloat(food.protein_per_100g || 0) * ratio).toFixed(2)),
-    carbs: parseFloat((parseFloat(food.carbs_per_100g || 0) * ratio).toFixed(2)),
-    fat: parseFloat((parseFloat(food.fat_per_100g || 0) * ratio).toFixed(2)),
-    fiber: parseFloat((parseFloat(food.fiber_per_100g || 0) * ratio).toFixed(2))
-  }
-}
-
-/**
- * 通过食物名称直接添加饮食记录
- */
-async function addFoodRecordByName(openId, foodName, weightGrams, caloriePer100g = null) {
-  if (!openId || !foodName || !weightGrams) {
-    throw new Error('参数不完整')
-  }
-
-  // 插入饮食记录
-  const today = new Date().toISOString().split('T')[0]
-  let recordData = {
-    open_id: openId,
-    food_name: foodName,
-    food_icon: '🍽️',
-    meal_type: '', // 拍照识图不分类别
-    record_date: today,
-    custom_weight_grams: weightGrams,
-    unit_id: null, // 不使用标准单位
-    created_at: new Date(),
-    updated_at: new Date()
-  }
-
-  // 先尝试通过名称搜索食物
-  const foods = await foodModel.searchByName(foodName)
-
-  if (foods && foods.length > 0) {
-    // 找到匹配食物，使用数据库中的营养信息
-    const food = foods[0]
-    const nutrition = await calculateNutrition(food.id, weightGrams)
-
-    recordData.food_id = food.id
-    recordData.calories = nutrition.calories
-    recordData.protein_grams = nutrition.protein
-    recordData.carbs_grams = nutrition.carbs
-    recordData.fat_grams = nutrition.fat
-    recordData.fiber_grams = nutrition.fiber || 0
-
-    if (food.icon) {
-      recordData.food_icon = food.icon
-    }
-  } else {
-    // 没有找到匹配食物，使用估算值
-    let calories = 0
-    let protein_grams = 0
-    let carbs_grams = 0
-    let fat_grams = 0
-    let fiber_grams = 0
-
-    if (caloriePer100g) {
-      // 如果百度AI提供了calorie信息，使用它计算卡路里
-      calories = Math.round((caloriePer100g * weightGrams) / 100)
-      // 对于未收录食物，其他营养素暂时设置为0或保守估算
-      protein_grams = 0
-      carbs_grams = 0
-      fat_grams = 0
-      fiber_grams = 0
-    }
-
-    recordData.food_id = null // 未收录食物没有对应的food_id
-    recordData.calories = calories
-    recordData.protein_grams = protein_grams
-    recordData.carbs_grams = carbs_grams
-    recordData.fat_grams = fat_grams
-    recordData.fiber_grams = fiber_grams
-  }
-
-  // 通过openId获取userId
-  const userModel = require('../user/model')
-  const user = await userModel.findByOpenId(openId)
-  if (!user) {
-    throw new Error('用户不存在')
-  }
-
-  // 插入饮食记录
-  const dietModel = require('../user/diet-model')
-  const result = await dietModel.create({
-    userId: user.id,
-    mealType: recordData.meal_type,
-    foodName: recordData.food_name,
-    calories: recordData.calories || 0,
-    protein: recordData.protein_grams || 0,
-    carbs: recordData.carbs_grams || 0,
-    fat: recordData.fat_grams || 0,
-    fiber: recordData.fiber_grams || 0,
-    recordDate: recordData.record_date
-  })
-
-  return result
-}
-
-
-/**
  * 从图片Base64识别食物（对外接口）- 使用豆包大模型
  */
 async function recognizeFoodFromBase64(imageBase64) {
@@ -284,7 +173,15 @@ async function analyzeFoodNutrition(foodName, weight) {
 
   try {
     // 构建提示词 - 简化版
-    const prompt = `分析食物营养: ${foodName} ${weight}克。返回JSON: {"calories":数字,"protein":数字,"carbs":数字,"fat":数字,"fiber":数字}`
+    const prompt = `
+        分析食物营养: ${foodName} ${weight}克。返回JSON: 
+        {
+          "estimated_calories": number-卡路里,
+          "estimated_carbs_g": number-碳水化合物克数,
+          "estimated_fat_g": number-脂肪克数,
+          "estimated_protein_g": number-蛋白质克数,
+        }
+    `
 
     // 调用豆包API
     const requestUrl = `${baseUrl}/responses`
@@ -315,39 +212,24 @@ async function analyzeFoodNutrition(foodName, weight) {
 
     // 解析响应
     const responseData = response.data
-    let jsonText = ''
-    
-    if (responseData.output && responseData.output[1] && responseData.output[1].content && responseData.output[1].content[0]) {
-      jsonText = responseData.output[1].content[0].text || ''
-    }
+    let jsonText = responseData?.output?.[1]?.content?.[0]?.text || ''
 
     if (!jsonText) {
       throw new Error('无法获取AI响应')
     }
 
-    console.log('AI响应:', jsonText)
-
     // 提取JSON（可能包含在markdown代码块中）
     let cleanJson = jsonText.trim()
-    const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
-    if (jsonMatch) {
-      cleanJson = jsonMatch[1]
-    } else {
-      // 尝试提取第一个{到最后一个}之间的内容
-      const braceMatch = jsonText.match(/\{[\s\S]*\}/)
-      if (braceMatch) {
-        cleanJson = braceMatch[0]
-      }
-    }
+    const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)?.[1]
 
     // 解析JSON
     const data = JSON.parse(cleanJson)
 
     return {
-      calories: Math.round(data.calories || 0),
-      protein: parseFloat((data.protein || 0).toFixed(1)),
-      carbs: parseFloat((data.carbs || 0).toFixed(1)),
-      fat: parseFloat((data.fat || 0).toFixed(1)),
+      calories: Math.round(data.estimated_calories || 0),
+      protein: parseFloat((data.estimated_protein_g || 0).toFixed(1)),
+      carbs: parseFloat((data.estimated_carbs_g || 0).toFixed(1)),
+      fat: parseFloat((data.estimated_fat_g || 0).toFixed(1)),
       fiber: parseFloat((data.fiber || 0).toFixed(1))
     }
 
@@ -357,19 +239,7 @@ async function analyzeFoodNutrition(foodName, weight) {
       console.error('响应状态:', error.response.status)
       console.error('响应数据:', error.response.data)
     }
-    
-    // 返回估算值（基于常见食物的平均值）
-    // 这里可以根据食物名称做简单的分类估算
-    const estimatedCaloriesPer100g = 150 // 平均值
-    const ratio = weight / 100
-    
-    return {
-      calories: Math.round(estimatedCaloriesPer100g * ratio),
-      protein: parseFloat((5 * ratio).toFixed(1)),
-      carbs: parseFloat((20 * ratio).toFixed(1)),
-      fat: parseFloat((5 * ratio).toFixed(1)),
-      fiber: parseFloat((2 * ratio).toFixed(1))
-    }
+    return { calorie: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
   }
 }
 
@@ -422,8 +292,6 @@ async function recognizeFoodFromText(text) {
       }
     );
 
-    console.log('response', response.data.choices[0].message)
-
     const content = response.data.choices[0].message.content;
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     
@@ -432,8 +300,6 @@ async function recognizeFoodFromText(text) {
     }
 
     const data = JSON.parse(jsonMatch[0]);
-
-    console.log('data', data)
 
     // 转换为统一格式
     const foods = data?.foods?.map(item => ({
@@ -478,9 +344,7 @@ async function recognizeFoodFromText(text) {
 }
 
 module.exports = {
-  calculateNutrition,
   recognizeFoodFromBase64,
-  addFoodRecordByName,
   analyzeFoodNutrition,
   recognizeFoodFromText
 }
