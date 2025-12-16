@@ -714,121 +714,6 @@ async function deleteDietRecord(openId, recordId) {
 }
 
 /**
- * 获取用户统计数据
- */
-async function getUserStats(openId) {
-  if (!openId) {
-    throw new BusinessError('openId 不能为空')
-  }
-  
-  const user = await userModel.findByOpenId(openId)
-  if (!user) {
-    throw new BusinessError('用户不存在')
-  }
-  
-  const { database } = require('../../core')
-  const db = database.createDbOperations()
-  
-  // 1. 统计饮食记录总数
-  const dietCountResult = await db.queryOne(
-    'SELECT COUNT(*) as count FROM diet_records WHERE user_id = ?',
-    [user.id]
-  )
-  const dietRecords = dietCountResult?.count || 0
-  
-  // 2. 统计运动记录总数
-  const exerciseCountResult = await db.queryOne(
-    'SELECT COUNT(*) as count FROM exercise_records WHERE user_id = ?',
-    [user.id]
-  )
-  const exerciseRecords = exerciseCountResult?.count || 0
-  
-  // 3. 统计健康记录总数（排除步数）
-  const healthCountResult = await db.queryOne(
-    'SELECT COUNT(*) as count FROM health_records WHERE user_id = ? AND record_type != ?',
-    [user.id, '步数']
-  )
-  const healthRecords = healthCountResult?.count || 0
-  
-  // 4. 计算坚持天数：从首次记录到现在的天数
-  // 找出所有记录表中的最早记录日期
-  const firstDietDate = await db.queryOne(
-    'SELECT MIN(record_date) as first_date FROM diet_records WHERE user_id = ?',
-    [user.id]
-  )
-  const firstExerciseDate = await db.queryOne(
-    'SELECT MIN(record_date) as first_date FROM exercise_records WHERE user_id = ?',
-    [user.id]
-  )
-  const firstHealthDate = await db.queryOne(
-    'SELECT MIN(record_date) as first_date FROM health_records WHERE user_id = ? AND record_type != ?',
-    [user.id, '步数']
-  )
-  
-  // 找出最早的记录日期
-  const dates = [
-    firstDietDate?.first_date,
-    firstExerciseDate?.first_date,
-    firstHealthDate?.first_date
-  ].filter(date => date !== null)
-  
-  let totalDays = 0
-  if (dates.length > 0) {
-    // 查询所有有记录的日期（去重）
-    const dietDates = await db.query(
-      'SELECT DISTINCT record_date FROM diet_records WHERE user_id = ?',
-      [user.id]
-    )
-    const exerciseDates = await db.query(
-      'SELECT DISTINCT record_date FROM exercise_records WHERE user_id = ?',
-      [user.id]
-    )
-    const healthDates = await db.query(
-      'SELECT DISTINCT record_date FROM health_records WHERE user_id = ? AND record_type != ?',
-      [user.id, '步数']
-    )
-    
-    // 合并所有日期并去重
-    const allDates = new Set()
-    dietDates.forEach(row => {
-      if (row.record_date) {
-        const dateStr = row.record_date instanceof Date 
-          ? row.record_date.toISOString().split('T')[0]
-          : row.record_date.toString().split('T')[0]
-        allDates.add(dateStr)
-      }
-    })
-    exerciseDates.forEach(row => {
-      if (row.record_date) {
-        const dateStr = row.record_date instanceof Date 
-          ? row.record_date.toISOString().split('T')[0]
-          : row.record_date.toString().split('T')[0]
-        allDates.add(dateStr)
-      }
-    })
-    healthDates.forEach(row => {
-      if (row.record_date) {
-        const dateStr = row.record_date instanceof Date 
-          ? row.record_date.toISOString().split('T')[0]
-          : row.record_date.toString().split('T')[0]
-        allDates.add(dateStr)
-      }
-    })
-    
-    // 计算天数：从首次记录日期到今天，每天有记录就加一天
-    totalDays = allDates.size
-  }
-  
-  return {
-    totalDays,
-    dietRecords,
-    exerciseRecords,
-    healthRecords
-  }
-}
-
-
-/**
  * 记录用户分享行为
  * @param {string} openId 
  * @param {number} scene 1:好友, 2:朋友圈
@@ -890,7 +775,6 @@ module.exports = {
   getDietRecords,
   addDietRecord,
   deleteDietRecord,
-  getUserStats,
   recordShare,
   getUserShareStatus
 }

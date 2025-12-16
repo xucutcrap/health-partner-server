@@ -357,19 +357,6 @@ router.delete('/diet-records/:id', handle(async (ctx) => {
 }))
 
 /**
- * 获取用户统计数据
- * GET /api/v1/user/stats?openId=xxx
- */
-router.get('/stats', handle(async (ctx) => {
-  const { openId } = ctx.query
-  if (!openId) {
-    return ctx.throw(400, 'openId 不能为空')
-  }
-  const result = await userService.getUserStats(openId)
-  return success(result)
-}))
-
-/**
  * 添加或更新体重记录
  * POST /api/v1/user/weight
  */
