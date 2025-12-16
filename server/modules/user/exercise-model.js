@@ -59,6 +59,7 @@ async function create(recordData) {
   const insertData = {
     user_id: recordData.userId,
     exercise_type: recordData.exerciseType,
+    exercise_id: recordData.exerciseId,
     duration: recordData.duration,
     calories: recordData.calories || 0,
     distance: recordData.distance || null,

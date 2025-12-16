@@ -154,19 +154,6 @@ router.get('/today-progress', handle(async (ctx) => {
 }))
 
 /**
- * 快速打卡
- * POST /api/v1/user/check-in
- */
-router.post('/check-in', handle(async (ctx) => {
-  const { openId, type, value } = ctx.request.body
-  if (!openId || !type || value === undefined) {
-    return ctx.throw(400, '参数不完整')
-  }
-  const result = await userService.quickCheckIn(openId, type, value)
-  return success(result)
-}))
-
-/**
  * 获取健康记录列表
  * GET /api/v1/user/health-records?openId=xxx&recordType=xxx&limit=xxx
  */
@@ -224,29 +211,6 @@ router.delete('/health-records/:id', handle(async (ctx) => {
 }))
 
 /**
- * 获取目标设置页面数据（包括计算值）
- * GET /api/v1/user/goal-page-data?openId=xxx&targetWeight=xx&exerciseDuration=xx
- */
-router.get('/goal-page-data', handle(async (ctx) => {
-  const { openId, targetWeight, exerciseDuration } = ctx.query
-  if (!openId) {
-    return ctx.throw(400, 'openId 不能为空')
-  }
-  
-  // 构建临时参数对象（如果提供了临时值）
-  const tempParams = {}
-  if (targetWeight !== undefined && targetWeight !== '') {
-    tempParams.targetWeight = parseFloat(targetWeight)
-  }
-  if (exerciseDuration !== undefined && exerciseDuration !== '') {
-    tempParams.exerciseDuration = parseInt(exerciseDuration)
-  }
-  
-  const result = await userService.getGoalPageData(openId, tempParams)
-  return success(result)
-}))
-
-/**
  * 获取运动记录列表
  * GET /api/v1/user/exercise-records?openId=xxx&exerciseType=xxx&startDate=xxx&endDate=xxx
  */
@@ -299,7 +263,7 @@ router.get('/exercise-week', handle(async (ctx) => {
  * POST /api/v1/user/exercise-records
  */
 router.post('/exercise-records', handle(async (ctx) => {
-  const { openId, exerciseType, duration, distance, caloriesPerMinute, recordDate } = ctx.request.body
+  const { openId, exerciseType, duration, distance, caloriesPerMinute, recordDate, exerciseId, calories } = ctx.request.body
   if (!openId || !exerciseType || !duration) {
     return ctx.throw(400, '参数不完整')
   }
@@ -309,7 +273,9 @@ router.post('/exercise-records', handle(async (ctx) => {
     duration,
     distance,
     caloriesPerMinute,
-    recordDate
+    recordDate,
+    exerciseId,
+    calories
   })
   return success(result)
 }))

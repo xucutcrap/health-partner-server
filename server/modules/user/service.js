@@ -348,33 +348,6 @@ async function getTodayProgress(openId) {
 }
 
 /**
- * 快速打卡（添加记录）
- */
-async function quickCheckIn(openId, type, value) {
-  if (!openId) {
-    throw new BusinessError('openId 不能为空')
-  }
-  
-  const user = await userModel.findByOpenId(openId)
-  if (!user) {
-    throw new BusinessError('用户不存在')
-  }
-  
-  if (type === 'exercise') {
-    await recordModel.addExerciseRecord(user.id, parseInt(value))
-  } else if (type === 'water') {
-    await recordModel.addWaterRecord(user.id, parseInt(value))
-  } else if (type === 'steps') {
-    await recordModel.addStepsRecord(user.id, parseInt(value))
-  } else {
-    throw new BusinessError('不支持的打卡类型')
-  }
-  
-  // 返回更新后的今日完成情况
-  return await getTodayProgress(openId)
-}
-
-/**
  * 获取用户健康记录列表
  */
 async function getHealthRecords(openId, options = {}) {
@@ -520,227 +493,6 @@ function calculateBMR(weight, height, age, gender) {
 }
 
 /**
- * 计算每日热量需求 (TDEE) - 总能量消耗
- * @deprecated 使用 calculateRecommendedCalories 替代
- */
-function calculateTDEE(bmr, activityLevel = 1.375) {
-  // 活动系数（基于每周运动频率）：
-  // 1.2 - 久坐不动（很少或没有运动）
-  // 1.375 - 轻度活动（每周1-3天轻度运动）
-  // 1.55 - 中度活动（每周3-5天中等强度运动）
-  // 1.725 - 高度活动（每周6-7天高强度运动）
-  // 1.9 - 专业运动员（每天高强度运动+体力工作）
-  
-  return Math.round(bmr * activityLevel)
-}
-
-/**
- * 根据用户目标和运动情况计算推荐热量摄入
- * @param {number} bmr - 基础代谢率
- * @param {number} currentWeight - 当前体重(kg)
- * @param {number} targetWeight - 目标体重(kg)
- * @param {number} exerciseDuration - 运动时长(分钟)
- * @param {string} exerciseType - 运动类型，默认'跑步'
- * @returns {object} 返回推荐热量信息
- */
-function calculateRecommendedCalories(bmr, currentWeight, targetWeight, exerciseDuration = 0, exerciseType = '跑步') {
-  // 判断用户目标：减肥 or 增重
-  const isLosingWeight = targetWeight && currentWeight > targetWeight
-  const isGainingWeight = targetWeight && currentWeight < targetWeight
-  
-  // 计算运动消耗的卡路里（如果运动）
-  let exerciseCalories = 0
-  if (exerciseDuration > 0) {
-    exerciseCalories = calculateExerciseCalories(exerciseType, exerciseDuration, null)
-  }
-  
-  // 总消耗 = BMR + 运动消耗
-  const totalExpenditure = bmr + exerciseCalories
-  
-  // 根据目标计算推荐摄入
-  let recommendedIntake = 0
-  let recommendation = {}
-  
-  if (isLosingWeight) {
-    // 减肥：建议每日热量缺口 300-500 卡（健康减重速度：每周0.5-1kg）
-    // 推荐摄入 = 总消耗 - 热量缺口
-    const calorieDeficit = 400 // 取中间值，每周约减0.75kg
-    recommendedIntake = Math.max(totalExpenditure - calorieDeficit, bmr * 0.8) // 最低不低于BMR的80%
-    
-    recommendation = {
-      goalType: 'lose',
-      goalTypeText: '减肥',
-      bmr: bmr,
-      exerciseCalories: exerciseCalories,
-      totalExpenditure: totalExpenditure,
-      recommendedIntake: Math.round(recommendedIntake),
-      calorieDeficit: calorieDeficit,
-      // 非运动日推荐
-      restDayIntake: Math.round(Math.max(bmr - calorieDeficit, bmr * 0.8)),
-      // 运动日推荐
-      exerciseDayIntake: Math.round(recommendedIntake)
-    }
-  } else if (isGainingWeight) {
-    // 增重：建议每日热量盈余 300-500 卡
-    const calorieSurplus = 400 // 取中间值
-    recommendedIntake = totalExpenditure + calorieSurplus
-    
-    recommendation = {
-      goalType: 'gain',
-      goalTypeText: '增重',
-      bmr: bmr,
-      exerciseCalories: exerciseCalories,
-      totalExpenditure: totalExpenditure,
-      recommendedIntake: Math.round(recommendedIntake),
-      calorieSurplus: calorieSurplus,
-      // 非运动日推荐
-      restDayIntake: Math.round(bmr + calorieSurplus),
-      // 运动日推荐
-      exerciseDayIntake: Math.round(recommendedIntake)
-    }
-  } else {
-    // 维持体重：摄入 = 总消耗
-    recommendedIntake = totalExpenditure
-    
-    recommendation = {
-      goalType: 'maintain',
-      goalTypeText: '维持',
-      bmr: bmr,
-      exerciseCalories: exerciseCalories,
-      totalExpenditure: totalExpenditure,
-      recommendedIntake: Math.round(recommendedIntake),
-      // 非运动日推荐
-      restDayIntake: Math.round(bmr),
-      // 运动日推荐
-      exerciseDayIntake: Math.round(recommendedIntake)
-    }
-  }
-  
-  return recommendation
-}
-
-/**
- * 获取目标设置页面的完整数据（包括计算值）
- * @param {string} openId - 用户openId
- * @param {object} tempParams - 临时参数（用于实时计算推荐热量）
- * @param {number} tempParams.targetWeight - 临时目标体重
- * @param {number} tempParams.exerciseDuration - 临时运动时长
- */
-async function getGoalPageData(openId, tempParams = {}) {
-  if (!openId) {
-    throw new BusinessError('openId 不能为空')
-  }
-  
-  const user = await userModel.findByOpenId(openId)
-  if (!user) {
-    throw new BusinessError('用户不存在')
-  }
-  
-  // 获取用户健康档案
-  const profile = await profileModel.findByUserId(user.id)
-  if (!profile || !profile.height || !profile.weight) {
-    throw new BusinessError('请先完善健康档案信息')
-  }
-
-  // 获取最近一次体重记录（代替档案中的体重）
-  const latestWeightRecord = await healthRecordModel.findByUserId(user.id, {
-    recordType: 'weight',
-    limit: 1
-  })
-  
-  // 如果有体重记录，使用最新记录；否则使用档案体重
-  const currentWeight = (latestWeightRecord && latestWeightRecord.length > 0) 
-    ? parseFloat(latestWeightRecord[0].value) 
-    : profile.weight
-  
-  // 更新 profile 对象中的 weight，以便后续计算使用最新的数据
-  profile.weight = currentWeight
-  
-  // 获取用户目标
-  const goals = await goalModel.findByUserId(user.id)
-  
-  // 计算BMI
-  const bmi = profile.weight / ((profile.height / 100) ** 2)
-  
-  // 计算理想体重范围
-  const idealWeightRange = calculateIdealWeightRange(profile.height, profile.gender)
-  
-  // 计算基础代谢率
-  const bmr = calculateBMR(profile.weight, profile.height, profile.age || 30, profile.gender)
-  
-  // 计算每日热量需求（默认轻度活动，用于兼容）
-  const tdee = calculateTDEE(bmr, 1.375)
-  
-  // 根据用户目标和运动情况计算推荐热量
-  // 优先使用临时参数（用户正在输入的值），否则使用数据库中的值
-  const targetWeight = tempParams.targetWeight !== undefined ? tempParams.targetWeight : (goals?.target_weight || null)
-  const exerciseDuration = tempParams.exerciseDuration !== undefined ? tempParams.exerciseDuration : (goals?.target_exercise || 30)
-  const calorieRecommendation = calculateRecommendedCalories(
-    bmr,
-    profile.weight,
-    targetWeight,
-    exerciseDuration,
-    '跑步' // 默认运动类型
-  )
-  
-  // 格式化日期为 YYYY-MM-DD
-  let targetDate = null
-  if (goals?.target_date) {
-    const date = new Date(goals.target_date)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    targetDate = `${year}-${month}-${day}`
-  }
-  
-  return {
-    profile: {
-      weight: parseFloat(profile.weight),
-      height: parseFloat(profile.height),
-      age: profile.age || 0,
-      gender: profile.gender || '男',
-      bmi: parseFloat(bmi.toFixed(1))
-    },
-    idealWeightRange,
-    bmr,
-    tdee, // 保留用于兼容
-    calorieRecommendation, // 新的推荐热量信息
-    goals: {
-      targetWeight: targetWeight,
-      targetExercise: exerciseDuration,
-      targetCalories: goals?.target_calories || calorieRecommendation.recommendedIntake,
-      targetCaloriesRestDay: goals?.target_calories_rest_day || null,
-      targetCaloriesExerciseDay: goals?.target_calories_exercise_day || null,
-      targetSteps: goals?.target_steps || 10000,
-      targetDate: targetDate
-    }
-  }
-}
-
-/**
- * 根据运动类型、时长和卡路里参数计算卡路里
- * 如果前端提供了 caloriesPerMinute，使用前端的值；否则使用默认值
- */
-function calculateExerciseCalories(exerciseType, duration, distance = null, caloriesPerMinute = null) {
-
-  let calories = caloriesPerMinute * duration
-
-  // 如果有距离，可以基于距离进行微调（可选）
-  // 例如：跑步每公里约消耗 60-70 卡，骑行每公里约消耗 30-40 卡
-  if (distance && distance > 0) {
-    if (exerciseType === '跑步') {
-      // 跑步：每公里约 65 卡
-      calories = Math.max(calories, distance * 65)
-    } else if (exerciseType === '骑行') {
-      // 骑行：每公里约 35 卡
-      calories = Math.max(calories, distance * 35)
-    }
-  }
-
-  return Math.round(calories)
-}
-
-/**
  * 判断运动类型是否需要距离
  */
 function needsDistance(exerciseType) {
@@ -765,6 +517,7 @@ async function getExerciseRecords(openId, options = {}) {
   // 格式化返回数据
   return records.map(record => ({
     id: record.id,
+    exerciseId: record.exercise_id,
     exerciseType: record.exercise_type,
     duration: record.duration,
     calories: record.calories,
@@ -829,16 +582,11 @@ async function addExerciseRecord(openId, recordData) {
     throw new BusinessError('openId 不能为空')
   }
 
-  const { exerciseType, duration, distance, caloriesPerMinute } = recordData
+  const { exerciseType, duration, distance, caloriesPerMinute, exerciseId } = recordData
 
   if (!exerciseType || !duration) {
     throw new BusinessError('运动类型和时长不能为空')
   }
-
-  // 验证距离（如果需要） - 项目不再限制必须填距离
-  // if (needsDistance(exerciseType) && (!distance || distance <= 0)) {
-  //   throw new BusinessError(`${exerciseType}需要填写距离`)
-  // }
 
   const user = await userModel.findByOpenId(openId)
   if (!user) {
@@ -846,10 +594,11 @@ async function addExerciseRecord(openId, recordData) {
   }
 
   // 自动计算卡路里（支持前端传入卡路里参数）
-  const calories = calculateExerciseCalories(exerciseType, duration, distance, caloriesPerMinute)
+  const calories = recordData.calories || caloriesPerMinute * duration
 
   const result = await exerciseModel.create({
     userId: user.id,
+    exerciseId,
     exerciseType,
     duration: parseInt(duration),
     calories,
@@ -1164,17 +913,14 @@ module.exports = {
   getUserGoals,
   updateUserGoals,
   getTodayProgress,
-  quickCheckIn,
   getHealthRecords,
   addHealthRecord,
   deleteHealthRecord,
-  getGoalPageData,
   getExerciseRecords,
   getTodayExerciseStats,
   getWeekExerciseRecords,
   addExerciseRecord,
   deleteExerciseRecord,
-  calculateExerciseCalories,
   needsDistance,
   getDietRecords,
   addDietRecord,

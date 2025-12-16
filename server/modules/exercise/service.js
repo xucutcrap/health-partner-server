@@ -6,7 +6,7 @@ const config = require('../../../config')
  * @param {string} text - 用户输入的文本描述
  * @returns {Promise<Object>} 识别结果
  */
-async function recognizeExerciseFromText(text) {
+async function recognizeExerciseFromText(text, profile) {
   const config = require('../../../config')
   // 安全获取配置
   const apiKey = process.env.DOUBAO_API_KEY || config.doubao?.apiKey
@@ -29,9 +29,14 @@ async function recognizeExerciseFromText(text) {
   }
 
   try {
+    const { gender, age, height, weight } = profile || {}
     // 构建提示词 - 简化版
-    const systemPrompt = "你是一名专业的健身教练。用户会用一句话描述他的运动情况，你需要识别出运动类型、时长（分钟）和估算的卡路里消耗。输出必须是纯净的JSON对象，格式：{\"exercise_name\": \"标准运动名称(如：跑步、游泳、骑行等)\", \"duration_minutes\": 数字, \"calories\": 数字, \"intensity\": \"低/中/高\", \"notes\": \"简短建议\"}。如果用户没有提供时长，请根据经验估算一个合理值（如30分钟）。无需任何其他文字。"
-
+    const systemPrompt = `
+        你是健身教练。用户信息：${gender} ${age}岁 ${height}cm ${weight}kg。
+        根据描述识别运动、估算时长(分钟)并估算热量。
+        仅输出 JSON：
+        {"exercise_name":"string-运动名称","duration_minutes":"number-时长","calories":"number-热量","exerciseId":"daily/cardio/strength",}
+    `
     console.log('Calling Doubao API for exercise:', text)
 
     // 调用豆包API - 使用正确的/responses端点
@@ -70,11 +75,7 @@ async function recognizeExerciseFromText(text) {
 
     // 解析响应 - 使用与食物识别相同的格式
     const responseData = response.data
-    let jsonText = ''
-    
-    if (responseData.output && responseData.output[1] && responseData.output[1].content && responseData.output[1].content[0]) {
-      jsonText = responseData.output[1].content[0].text || ''
-    }
+    let jsonText = responseData?.output?.[1]?.content?.[0]?.text || ''
 
     if (!jsonText) {
       throw new Error('无法获取AI响应')
@@ -84,17 +85,6 @@ async function recognizeExerciseFromText(text) {
 
     // 提取JSON（可能包含在markdown代码块中）
     let cleanJson = jsonText.trim()
-    const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
-    if (jsonMatch) {
-      cleanJson = jsonMatch[1]
-    } else {
-      // 尝试提取第一个{到最后一个}之间的内容
-      const braceMatch = jsonText.match(/\{[\s\S]*\}/)
-      if (braceMatch) {
-        cleanJson = braceMatch[0]
-      }
-    }
-
     const aiResult = JSON.parse(cleanJson)
 
     return {
