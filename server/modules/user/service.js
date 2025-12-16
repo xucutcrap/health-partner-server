@@ -935,85 +935,17 @@ async function addDietRecord(openId, recordData) {
     throw new BusinessError('openId 不能为空')
   }
   
-  const { mealType, foodId, unitId, customWeight, foodName, calories, protein, carbs, fat, fiber } = recordData
-  
-  // mealType 可以为空字符串（扫码识别可能不知道餐次）
-  // if (!mealType) {
-  //   throw new BusinessError('餐次不能为空')
-  // }
-  
   const user = await userModel.findByOpenId(openId)
   if (!user) {
     throw new BusinessError('用户不存在')
   }
   
-  let finalCalories = calories || 0
-  let finalProtein = protein || 0
-  let finalCarbs = carbs || 0
-  let finalFat = fat || 0
-  let finalFiber = fiber || 0
-  let finalFoodName = foodName || ''
-  
-  // 如果提供了foodId，自动计算营养信息
-  if (foodId) {
-    let weightGrams = 0
-    
-    // 如果提供了unitId，获取单位对应的重量
-    if (unitId) {
-      const units = await foodService.getUnitsByFood(foodId)
-      const unit = units.find(u => u.id === unitId)
-      if (!unit) {
-        throw new BusinessError('单位不存在')
-      }
-      weightGrams = unit.weightGrams
-    } else if (customWeight) {
-      // 如果提供了自定义重量
-      weightGrams = parseFloat(customWeight)
-    } else {
-      throw new BusinessError('请提供单位或自定义重量')
-    }
-    
-    // 计算营养信息
-    const nutrition = await foodService.calculateNutrition(foodId, weightGrams)
-    finalCalories = nutrition.calories
-    finalProtein = nutrition.protein
-    finalCarbs = nutrition.carbs
-    finalFat = nutrition.fat
-    finalFiber = nutrition.fiber
-    
-    // 获取食物名称
-    const food = await require('../food/food-model').findById(foodId)
-    if (food) {
-      finalFoodName = food.name
-    }
-  }
-  
-  if (!finalFoodName) {
-    throw new BusinessError('食物名称不能为空')
-  }
-  
   const result = await dietModel.create({
     userId: user.id,
-    mealType,
-    foodName: finalFoodName,
-    calories: finalCalories,
-    protein: finalProtein,
-    carbs: finalCarbs,
-    fat: finalFat,
-    fiber: finalFiber,
-    recordDate: recordData.recordDate || new Date().toISOString().split('T')[0]
+    ...recordData
   })
   
-  return {
-    id: result.insertId || result.id,
-    mealType,
-    foodName: finalFoodName,
-    calories: finalCalories,
-    protein: finalProtein,
-    carbs: finalCarbs,
-    fat: finalFat,
-    fiber: finalFiber
-  }
+  return true
 }
 
 /**
