@@ -231,20 +231,6 @@ router.get('/exercise-records', handle(async (ctx) => {
 }))
 
 /**
- * 获取今日运动统计
- * GET /api/v1/user/exercise-stats?openId=xxx
- */
-router.get('/exercise-stats', handle(async (ctx) => {
-  const { openId } = ctx.query
-  if (!openId) {
-    return ctx.throw(400, 'openId 不能为空')
-  }
-  
-  const result = await userService.getTodayExerciseStats(openId)
-  return success(result)
-}))
-
-/**
  * 获取本周运动记录
  * GET /api/v1/user/exercise-week?openId=xxx
  */
@@ -368,20 +354,6 @@ router.delete('/diet-records/:id', handle(async (ctx) => {
   
   await userService.deleteDietRecord(openId, id)
   return success(null, '删除成功')
-}))
-
-/**
- * 获取今日饮食统计
- * GET /api/v1/user/diet-stats?openId=xxx
- */
-router.get('/diet-stats', handle(async (ctx) => {
-  const { openId } = ctx.query
-  if (!openId) {
-    return ctx.throw(400, 'openId 不能为空')
-  }
-  
-  const result = await userService.getTodayDietStats(openId)
-  return success(result)
 }))
 
 /**

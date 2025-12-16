@@ -537,28 +537,6 @@ async function getExerciseRecords(openId, options = {}) {
 }
 
 /**
- * 获取今日运动统计
- */
-async function getTodayExerciseStats(openId) {
-  if (!openId) {
-    throw new BusinessError('openId 不能为空')
-  }
-  
-  const user = await userModel.findByOpenId(openId)
-  if (!user) {
-    throw new BusinessError('用户不存在')
-  }
-  
-  const stats = await exerciseModel.getTodayStats(user.id)
-  
-  return {
-    totalDuration: stats.totalDuration || 0,
-    totalCalories: stats.totalCalories || 0,
-    totalDistance: stats.totalDistance ? parseFloat(stats.totalDistance) : 0
-  }
-}
-
-/**
  * 获取本周运动记录
  */
 async function getWeekExerciseRecords(openId) {
@@ -736,30 +714,6 @@ async function deleteDietRecord(openId, recordId) {
 }
 
 /**
- * 获取今日饮食统计
- */
-async function getTodayDietStats(openId) {
-  if (!openId) {
-    throw new BusinessError('openId 不能为空')
-  }
-  
-  const user = await userModel.findByOpenId(openId)
-  if (!user) {
-    throw new BusinessError('用户不存在')
-  }
-  
-  const stats = await dietModel.getTodayStats(user.id)
-  
-  return {
-    totalCalories: stats.totalCalories || 0,
-    totalProtein: parseFloat(stats.totalProtein || 0),
-    totalCarbs: parseFloat(stats.totalCarbs || 0),
-    totalFat: parseFloat(stats.totalFat || 0),
-    totalFiber: parseFloat(stats.totalFiber || 0)
-  }
-}
-
-/**
  * 获取用户统计数据
  */
 async function getUserStats(openId) {
@@ -929,7 +883,6 @@ module.exports = {
   addHealthRecord,
   deleteHealthRecord,
   getExerciseRecords,
-  getTodayExerciseStats,
   getWeekExerciseRecords,
   addExerciseRecord,
   deleteExerciseRecord,
@@ -937,7 +890,6 @@ module.exports = {
   getDietRecords,
   addDietRecord,
   deleteDietRecord,
-  getTodayDietStats,
   getUserStats,
   recordShare,
   getUserShareStatus
