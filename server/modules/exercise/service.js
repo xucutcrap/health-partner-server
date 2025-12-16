@@ -39,7 +39,7 @@ async function recognizeExerciseFromText(text, profile) {
           "exercise_name": "string-运动名称",
           "duration_minutes": "number-时长",
           "calories": "number-热量",
-          "exerciseId": "daily/cardio/strength",
+          "exerciseId": "daily|cardio|strength-3选1",
           "exercise_icon": "emoji-图标"
         }
     `
