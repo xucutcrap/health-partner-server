@@ -60,6 +60,7 @@ async function create(recordData) {
     user_id: recordData.userId,
     exercise_type: recordData.exerciseType,
     exercise_id: recordData.exerciseId,
+    exercise_icon: recordData.icon || null,
     duration: recordData.duration,
     calories: recordData.calories || 0,
     distance: recordData.distance || null,

@@ -263,7 +263,7 @@ router.get('/exercise-week', handle(async (ctx) => {
  * POST /api/v1/user/exercise-records
  */
 router.post('/exercise-records', handle(async (ctx) => {
-  const { openId, exerciseType, duration, distance, caloriesPerMinute, recordDate, exerciseId, calories } = ctx.request.body
+  const { openId, exerciseType, duration, distance, caloriesPerMinute, recordDate, exerciseId, calories, icon } = ctx.request.body
   if (!openId || !exerciseType || !duration) {
     return ctx.throw(400, '参数不完整')
   }
@@ -275,7 +275,8 @@ router.post('/exercise-records', handle(async (ctx) => {
     caloriesPerMinute,
     recordDate,
     exerciseId,
-    calories
+    calories,
+    icon
   })
   return success(result)
 }))

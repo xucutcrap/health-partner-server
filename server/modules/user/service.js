@@ -514,15 +514,26 @@ async function getExerciseRecords(openId, options = {}) {
   
   const records = await exerciseModel.findByUserId(user.id, options)
   
+  // 计算总消耗和总时长
+  const totalDuration = records.reduce((sum, r) => sum + (r.duration || 0), 0)
+  const totalCalories = records.reduce((sum, r) => sum + (r.calories || 0), 0)
+
   // 格式化返回数据
-  return records.map(record => ({
+  const list = records.map(record => ({
     id: record.id,
     exerciseId: record.exercise_id,
     exerciseType: record.exercise_type,
+    icon: record.exercise_icon || '🔥',
     duration: record.duration,
     calories: record.calories,
     recordDate: record.record_date,
   }))
+
+  return {
+    list,
+    totalDuration,
+    totalCalories
+  }
 }
 
 /**
@@ -582,7 +593,7 @@ async function addExerciseRecord(openId, recordData) {
     throw new BusinessError('openId 不能为空')
   }
 
-  const { exerciseType, duration, distance, caloriesPerMinute, exerciseId } = recordData
+  const { exerciseType, duration, distance, caloriesPerMinute, exerciseId, icon } = recordData
 
   if (!exerciseType || !duration) {
     throw new BusinessError('运动类型和时长不能为空')
@@ -600,6 +611,7 @@ async function addExerciseRecord(openId, recordData) {
     userId: user.id,
     exerciseId,
     exerciseType,
+    icon,
     duration: parseInt(duration),
     calories,
     distance: distance ? parseFloat(distance) : null,

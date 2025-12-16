@@ -35,7 +35,13 @@ async function recognizeExerciseFromText(text, profile) {
         你是健身教练。用户信息：${gender} ${age}岁 ${height}cm ${weight}kg。
         根据描述识别运动、估算时长(分钟)并估算热量。
         仅输出 JSON：
-        {"exercise_name":"string-运动名称","duration_minutes":"number-时长","calories":"number-热量","exerciseId":"daily/cardio/strength",}
+        {
+          "exercise_name": "string-运动名称",
+          "duration_minutes": "number-时长",
+          "calories": "number-热量",
+          "exerciseId": "daily/cardio/strength",
+          "exercise_icon": "emoji-图标"
+        }
     `
     console.log('Calling Doubao API for exercise:', text)
 
