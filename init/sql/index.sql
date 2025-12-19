@@ -153,3 +153,111 @@ CREATE TABLE `feedback` (
   KEY `idx_create_time` (`create_time`),
   KEY `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户反馈表';
+
+--11. 食谱表（recipes）
+CREATE TABLE recipes (
+    -- 基本信息
+    id INT PRIMARY KEY COMMENT '食谱唯一ID（对应JSON中的id）',
+    name VARCHAR(255) NOT NULL COMMENT '食谱名称（对应JSON中的name）',
+    intro TEXT COMMENT '食谱详细介绍（对应JSON中的intro）',
+    pic_url VARCHAR(500) COMMENT '食谱图片URL（对应JSON中的pic）',
+    promotion VARCHAR(255) COMMENT '宣传语/标语（对应JSON中的promotion）',
+    
+    -- 使用统计信息
+    display_count INT DEFAULT 0 COMMENT '展示的累计使用人数（对应JSON中的displayCount）',
+    footer VARCHAR(100) COMMENT '底部显示文本（如"428.8万人使用中"）（对应JSON中的footer）',
+    
+    -- 推荐标签
+    recommend_text VARCHAR(50) COMMENT '推荐标签文本（如"热门"、"最新"、"最热"）（对应JSON中的recommendText）',
+    
+    -- 时间戳
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+    
+    -- 索引定义
+    INDEX idx_recipes_name (name) COMMENT '食谱名称索引',
+    INDEX idx_recipes_display_count (display_count DESC) COMMENT '按展示人数排序索引',
+    INDEX idx_recipes_recommend_text (recommend_text) COMMENT '推荐标签索引',
+    INDEX idx_recipes_created_at (created_at DESC) COMMENT '创建时间索引'
+) COMMENT='食谱主表，存储所有食谱的基本信息';
+
+--12. 食谱分类表（recipe_groups）
+CREATE TABLE recipe_groups (
+    -- 基本信息
+    group_id INT PRIMARY KEY COMMENT '分类唯一ID（对应JSON中的groupId）',
+    group_name VARCHAR(100) NOT NULL COMMENT '分类名称（如"夏日瘦身"、"轻断食"）（对应JSON中的groupName）',
+    
+    -- 显示配置
+    display_order INT DEFAULT 0 COMMENT '分类显示顺序（数值越小越靠前）',
+    is_active TINYINT DEFAULT 1 COMMENT '是否启用（0=停用，1=启用）',
+    
+    -- 时间戳
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+    
+    -- 约束与索引
+    UNIQUE KEY uk_recipe_groups_name (group_name) COMMENT '分类名称唯一约束',
+    INDEX idx_recipe_groups_display_order (display_order) COMMENT '显示顺序索引',
+    INDEX idx_recipe_groups_is_active (is_active) COMMENT '启用状态索引'
+) COMMENT='食谱分类表，存储所有食谱分类信息';
+
+--13. 食谱与分类的关联表（recipe_group_relations）
+CREATE TABLE recipe_group_relations (
+    -- 主键
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '关联关系唯一ID',
+    
+    -- 外键关联
+    recipe_id INT NOT NULL COMMENT '食谱ID，关联recipes.id',
+    group_id INT NOT NULL COMMENT '分类ID，关联recipe_groups.group_id',
+    
+    -- 显示配置
+    display_order INT DEFAULT 0 COMMENT '食谱在分类中的显示顺序（数值越小越靠前）',
+    
+    -- 时间戳
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    
+    -- 约束与索引
+    UNIQUE KEY uk_recipe_group_relations_unique (recipe_id, group_id) COMMENT '食谱和分类组合唯一约束，防止重复关联',
+    INDEX idx_recipe_group_relations_recipe_id (recipe_id) COMMENT '食谱ID索引，便于查询食谱的所有分类',
+    INDEX idx_recipe_group_relations_group_id (group_id) COMMENT '分类ID索引，便于查询分类下的所有食谱',
+    INDEX idx_recipe_group_relations_display (group_id, display_order) COMMENT '按分类和显示顺序排序的索引，优化分类内排序查询',
+    
+    -- 外键约束（确保数据完整性）
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES recipe_groups(group_id) ON DELETE CASCADE
+) COMMENT='食谱与分类的关联表（多对多关系），用于支持一个食谱属于多个分类';
+
+-- 14. 食谱日餐单表 - 存储食谱的每日餐单
+CREATE TABLE recipe_daily_meals (
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '自增主键ID',
+    recipe_id INT NOT NULL COMMENT '关联食谱ID',
+    day_number SMALLINT NOT NULL COMMENT '第几天（1-13）',
+    day_name VARCHAR(20) NOT NULL COMMENT '天数名称（如"第1天"、"第2天"）',
+    total_calories INT COMMENT '总热量',
+    display_order INT DEFAULT 0 COMMENT '显示顺序',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    
+    UNIQUE KEY uk_recipe_day (recipe_id, day_number) COMMENT '食谱ID和天数组合唯一',
+    INDEX idx_recipe_daily_meals_recipe (recipe_id),
+    INDEX idx_recipe_daily_meals_day (day_number),
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
+) COMMENT='食谱日餐单表，存储食谱的每日餐单信息';
+
+-- 15. 每日食物表 - 直接存储每天每餐的食物
+CREATE TABLE daily_foods (
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '自增主键ID',
+    daily_meal_id INT NOT NULL COMMENT '关联日餐单ID',
+    meal_type VARCHAR(20) NOT NULL COMMENT '餐次类型（breakfast=早餐, lunch=午餐, dinner=晚餐, snack=加餐）',
+    meal_name VARCHAR(50) COMMENT '餐次名称（如"早餐"、"午餐"）',
+    meal_calories DECIMAL(8,2) COMMENT '餐次热量',
+    food_name VARCHAR(200) NOT NULL COMMENT '食物名称',
+    food_count DECIMAL(10,2) NOT NULL COMMENT '食物数量',
+    unit VARCHAR(50) NOT NULL COMMENT '单位（如"克"、"个"、"盘"）',
+    display_order INT DEFAULT 0 COMMENT '显示顺序',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    
+    INDEX idx_daily_foods_daily_meal (daily_meal_id),
+    INDEX idx_daily_foods_meal_type (meal_type),
+    INDEX idx_daily_foods_display (daily_meal_id, meal_type, display_order),
+    FOREIGN KEY (daily_meal_id) REFERENCES recipe_daily_meals(id) ON DELETE CASCADE
+) COMMENT='每日食物表，直接存储每天每餐的食物信息';
