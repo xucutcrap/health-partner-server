@@ -95,8 +95,11 @@ const getFoodsByDailyMealId = async (dailyMealId) => {
       food_name as foodName,
       food_count as foodCount,
       unit,
-      display_order as displayOrder
-    FROM daily_foods
+      display_order as displayOrder,
+      food_img_url as foodImgUrl,
+      food_id as foodId,
+      food_calories as foodCalories
+    FROM daily_foods_detail
     WHERE daily_meal_id = ?
     ORDER BY 
       FIELD(meal_type, 'breakfast', 'lunch', 'dinner', 'snack'),

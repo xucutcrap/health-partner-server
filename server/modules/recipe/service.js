@@ -56,7 +56,7 @@ const getDailyMealDetail = async (dailyMealId) => {
     throw new Error('日餐单ID不能为空')
   }
 
-  // 获取该天的所有食物
+  // 获取该天的所有食物（使用视图 daily_foods_detail，已计算好卡路里）
   const foods = await recipeModel.getFoodsByDailyMealId(dailyMealId)
 
   // 按餐次分组
@@ -74,8 +74,15 @@ const getDailyMealDetail = async (dailyMealId) => {
         foodName: food.foodName,
         foodCount: food.foodCount,
         unit: food.unit,
-        mealCalories: food.mealCalories
+        foodId: food.foodId,
+        foodImgUrl: food.foodImgUrl || null,
+        foodCalories: food.foodCalories ? Math.round(food.foodCalories) : 0
       })
+      
+      // 累加餐次热量（如果有的话）
+      if (food.mealCalories) {
+        mealTypeMap[mealType].calories = food.mealCalories
+      }
     }
   })
 
