@@ -42,21 +42,20 @@ const getRecipeDetail = async (recipeId) => {
     dailyMeals: dailyMeals.map(meal => ({
       id: meal.id,
       dayNumber: meal.dayNumber,
-      dayName: meal.dayName,
-      totalCalories: meal.totalCalories
+      dayName: meal.dayName
     }))
   }
 }
 
 /**
- * 获取指定天数的饮食安排
+ * 获取指定天数的饮食安排（支持多规格）
  */
 const getDailyMealDetail = async (dailyMealId) => {
   if (!dailyMealId) {
     throw new Error('日餐单ID不能为空')
   }
 
-  // 获取该天的所有食物（使用视图 daily_foods_detail，已计算好卡路里）
+  // 获取该天的所有食物（已包含规格信息和准确的卡路里计算）
   const foods = await recipeModel.getFoodsByDailyMealId(dailyMealId)
 
   // 按餐次分组
@@ -70,19 +69,19 @@ const getDailyMealDetail = async (dailyMealId) => {
   foods.forEach(food => {
     const mealType = food.mealType
     if (mealTypeMap[mealType]) {
+      const foodCalories = food.foodCalories ? Math.round(food.foodCalories) : 0
+      
       mealTypeMap[mealType].list.push({
         foodName: food.foodName,
         foodCount: food.foodCount,
         unit: food.unit,
         foodId: food.foodId,
         foodImgUrl: food.foodImgUrl || null,
-        foodCalories: food.foodCalories ? Math.round(food.foodCalories) : 0
+        foodCalories: foodCalories
       })
       
-      // 累加餐次热量（如果有的话）
-      if (food.mealCalories) {
-        mealTypeMap[mealType].calories = food.mealCalories
-      }
+      // 累加餐次热量
+      mealTypeMap[mealType].calories += foodCalories
     }
   })
 
@@ -103,10 +102,64 @@ const getDailyMealDetail = async (dailyMealId) => {
   return meals
 }
 
+/**
+ * 获取食物的所有规格
+ */
+const getFoodSpecs = async (foodId) => {
+  if (!foodId) {
+    throw new Error('食物ID不能为空')
+  }
+  return await recipeModel.getFoodSpecs(foodId)
+}
+
+/**
+ * 获取食物详情（包含所有规格）
+ */
+const getFoodDetail = async (foodId) => {
+  if (!foodId) {
+    throw new Error('食物ID不能为空')
+  }
+
+  const foodWithSpecs = await recipeModel.getFoodWithSpecs(foodId)
+  if (!foodWithSpecs || foodWithSpecs.length === 0) {
+    throw new Error('食物不存在')
+  }
+
+  // 第一条记录包含食物基本信息
+  const baseFood = foodWithSpecs[0]
+  
+  // 提取规格信息
+  const specs = foodWithSpecs
+    .filter(item => item.specId) // 过滤掉没有规格的记录
+    .map(item => ({
+      specId: item.specId,
+      specName: item.specName,
+      referUnit: item.referUnit,
+      unitCount: item.unitCount,
+      unitWeight: item.unitWeight,
+      isDefault: item.isDefault,
+      caloriesPerUnit: item.caloriesPerUnit
+    }))
+
+  return {
+    foodId: baseFood.foodId,
+    foodName: baseFood.foodName,
+    caloryPer100g: baseFood.caloryPer100g,
+    imgUrl: baseFood.imgUrl,
+    category: baseFood.category,
+    baseUnit: baseFood.baseUnit,
+    defaultReferUnit: baseFood.defaultReferUnit,
+    defaultUnitCount: baseFood.defaultUnitCount,
+    specs: specs
+  }
+}
+
 module.exports = {
   getAllGroups,
   getRecipesByGroupId,
   getRecipeDetail,
-  getDailyMealDetail
+  getDailyMealDetail,
+  getFoodSpecs,
+  getFoodDetail
 }
 

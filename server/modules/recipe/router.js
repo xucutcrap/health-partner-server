@@ -39,7 +39,7 @@ router.get('/detail', handle(async (ctx) => {
 }))
 
 /**
- * 获取指定天数的饮食安排
+ * 获取指定天数的饮食安排（支持多规格）
  * GET /api/v1/recipe/daily-meal
  * Query: { dailyMealId }
  */
@@ -47,6 +47,28 @@ router.get('/daily-meal', handle(async (ctx) => {
   const { dailyMealId } = ctx.query
   const meals = await recipeService.getDailyMealDetail(dailyMealId)
   return success(meals)
+}))
+
+/**
+ * 获取食物的所有规格
+ * GET /api/v1/recipe/food-specs
+ * Query: { foodId }
+ */
+router.get('/food-specs', handle(async (ctx) => {
+  const { foodId } = ctx.query
+  const specs = await recipeService.getFoodSpecs(foodId)
+  return success(specs)
+}))
+
+/**
+ * 获取食物详情（包含所有规格）
+ * GET /api/v1/recipe/food-detail
+ * Query: { foodId }
+ */
+router.get('/food-detail', handle(async (ctx) => {
+  const { foodId } = ctx.query
+  const detail = await recipeService.getFoodDetail(foodId)
+  return success(detail)
 }))
 
 module.exports = router
