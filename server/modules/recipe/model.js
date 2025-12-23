@@ -90,14 +90,13 @@ const getFoodsByDailyMealId = async (dailyMealId) => {
       df.daily_meal_id as dailyMealId,
       df.meal_type as mealType,
       df.meal_name as mealName,
-      df.food_name as foodName,
       df.food_count as foodCount,
       df.unit,
       df.display_order as displayOrder,
       df.food_id as foodId,
       
       -- 食物基本信息
-      f.food_name as foodNameFull,
+      f.food_name as foodName,
       f.calory_per_100g as caloryPer100g,
       f.img_url as foodImgUrl,
       f.category as foodCategory,
