@@ -19,10 +19,20 @@ router.get('/groups', handle(async (ctx) => {
 /**
  * 根据分类ID获取食谱列表
  * GET /api/v1/recipe/list
- * Query: { groupId }
+ * Query: { groupId, openId }
  */
 router.get('/list', handle(async (ctx) => {
-  const { groupId } = ctx.query
+  const { groupId, openId } = ctx.query
+  
+  // 如果是"我的食谱"分类（groupId=0），返回用户收藏的食谱
+  if (groupId === '0') {
+    if (!openId) {
+      return ctx.throw(400, 'openId 不能为空')
+    }
+    const recipes = await recipeService.getUserFavoriteRecipesByOpenId(openId)
+    return success(recipes)
+  }
+  
   const recipes = await recipeService.getRecipesByGroupId(groupId)
   return success(recipes)
 }))
@@ -30,12 +40,54 @@ router.get('/list', handle(async (ctx) => {
 /**
  * 获取食谱详情
  * GET /api/v1/recipe/detail
- * Query: { recipeId }
+ * Query: { recipeId, openId }
  */
 router.get('/detail', handle(async (ctx) => {
-  const { recipeId } = ctx.query
-  const detail = await recipeService.getRecipeDetail(recipeId)
+  const { recipeId, openId } = ctx.query
+  const detail = await recipeService.getRecipeDetail(recipeId, openId)
   return success(detail)
+}))
+
+/**
+ * 添加收藏
+ * POST /api/v1/recipe/favorite
+ * Body: { openId, recipeId, notes }
+ */
+router.post('/favorite', handle(async (ctx) => {
+  const { openId, recipeId, notes } = ctx.request.body
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await recipeService.addFavoriteByOpenId(openId, recipeId, notes)
+  return success(result)
+}))
+
+/**
+ * 取消收藏
+ * DELETE /api/v1/recipe/favorite
+ * Body: { openId, recipeId }
+ */
+router.delete('/favorite', handle(async (ctx) => {
+  const { openId, recipeId } = ctx.request.body
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await recipeService.removeFavoriteByOpenId(openId, recipeId)
+  return success(result)
+}))
+
+/**
+ * 检查是否收藏
+ * GET /api/v1/recipe/favorite/check
+ * Query: { openId, recipeId }
+ */
+router.get('/favorite/check', handle(async (ctx) => {
+  const { openId, recipeId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const isFavorite = await recipeService.checkUserFavoriteByOpenId(openId, recipeId)
+  return success({ isFavorite })
 }))
 
 /**

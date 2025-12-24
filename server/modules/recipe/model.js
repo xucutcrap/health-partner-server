@@ -36,7 +36,7 @@ const getRecipesByGroupId = async (groupId) => {
       r.recommend_text as recommendText
     FROM recipes r
     INNER JOIN recipe_group_relations rgr ON r.id = rgr.recipe_id
-    WHERE rgr.group_id = ?
+    WHERE rgr.group_id = ? AND r.is_visible = 1
     ORDER BY rgr.display_order ASC, r.id ASC
   `
   return await query(sql, [groupId])
@@ -57,7 +57,7 @@ const getRecipeById = async (recipeId) => {
       footer,
       recommend_text as recommendText
     FROM recipes
-    WHERE id = ?
+    WHERE id = ? AND is_visible = 1
   `
   return await queryOne(sql, [recipeId])
 }
@@ -248,6 +248,66 @@ const getFoodWithSpecs = async (foodId) => {
   return await query(sql, [foodId])
 }
 
+/**
+ * 获取用户收藏的食谱列表（我的食谱）
+ */
+const getUserFavoriteRecipes = async (userId) => {
+  const sql = `
+    SELECT 
+      r.id,
+      r.name,
+      r.intro,
+      r.pic_url as picUrl,
+      r.promotion,
+      r.display_count as displayCount,
+      r.footer,
+      r.recommend_text as recommendText,
+      ufr.favorite_time as favoriteTime
+    FROM user_favorite_recipes ufr
+    INNER JOIN recipes r ON ufr.recipe_id = r.id
+    WHERE ufr.user_id = ? AND r.is_visible = 1
+    ORDER BY ufr.favorite_time DESC
+  `
+  return await query(sql, [userId])
+}
+
+/**
+ * 检查用户是否收藏了某个食谱
+ */
+const checkUserFavorite = async (userId, recipeId) => {
+  const sql = `
+    SELECT id
+    FROM user_favorite_recipes
+    WHERE user_id = ? AND recipe_id = ?
+    LIMIT 1
+  `
+  const result = await queryOne(sql, [userId, recipeId])
+  return !!result
+}
+
+/**
+ * 添加收藏
+ */
+const addFavorite = async (userId, recipeId, notes = null) => {
+  const sql = `
+    INSERT INTO user_favorite_recipes (user_id, recipe_id, notes)
+    VALUES (?, ?, ?)
+    ON DUPLICATE KEY UPDATE notes = VALUES(notes)
+  `
+  return await query(sql, [userId, recipeId, notes])
+}
+
+/**
+ * 取消收藏
+ */
+const removeFavorite = async (userId, recipeId) => {
+  const sql = `
+    DELETE FROM user_favorite_recipes
+    WHERE user_id = ? AND recipe_id = ?
+  `
+  return await query(sql, [userId, recipeId])
+}
+
 module.exports = {
   getAllGroups,
   getRecipesByGroupId,
@@ -257,6 +317,10 @@ module.exports = {
   getFoodSpecs,
   getFoodDefaultSpec,
   getFoodSpecByUnit,
-  getFoodWithSpecs
+  getFoodWithSpecs,
+  getUserFavoriteRecipes,
+  checkUserFavorite,
+  addFavorite,
+  removeFavorite
 }
 

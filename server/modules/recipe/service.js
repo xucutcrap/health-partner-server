@@ -2,6 +2,18 @@
  * 食谱业务逻辑
  */
 const recipeModel = require('./model')
+const userModel = require('../user/model')
+
+/**
+ * 通过openId获取userId
+ */
+const getUserIdByOpenId = async (openId) => {
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new Error('用户不存在')
+  }
+  return user.id
+}
 
 /**
  * 获取所有食谱分类
@@ -21,9 +33,20 @@ const getRecipesByGroupId = async (groupId) => {
 }
 
 /**
+ * 通过openId获取用户收藏的食谱列表（我的食谱）
+ */
+const getUserFavoriteRecipesByOpenId = async (openId) => {
+  if (!openId) {
+    throw new Error('openId不能为空')
+  }
+  const userId = await getUserIdByOpenId(openId)
+  return await recipeModel.getUserFavoriteRecipes(userId)
+}
+
+/**
  * 获取食谱详情（包含基本信息和所有天数）
  */
-const getRecipeDetail = async (recipeId) => {
+const getRecipeDetail = async (recipeId, openId = null) => {
   if (!recipeId) {
     throw new Error('食谱ID不能为空')
   }
@@ -37,14 +60,72 @@ const getRecipeDetail = async (recipeId) => {
   // 获取所有日餐单
   const dailyMeals = await recipeModel.getDailyMealsByRecipeId(recipeId)
 
+  // 如果提供了openId，检查是否已收藏
+  let isFavorite = false
+  if (openId) {
+    try {
+      const userId = await getUserIdByOpenId(openId)
+      isFavorite = await recipeModel.checkUserFavorite(userId, recipeId)
+    } catch (error) {
+      // 用户不存在时，isFavorite保持为false
+      console.warn('获取收藏状态失败:', error.message)
+    }
+  }
+
   return {
     ...recipe,
+    isFavorite,
     dailyMeals: dailyMeals.map(meal => ({
       id: meal.id,
       dayNumber: meal.dayNumber,
       dayName: meal.dayName
     }))
   }
+}
+
+/**
+ * 通过openId添加收藏
+ */
+const addFavoriteByOpenId = async (openId, recipeId, notes = null) => {
+  if (!openId || !recipeId) {
+    throw new Error('openId和食谱ID不能为空')
+  }
+  
+  const userId = await getUserIdByOpenId(openId)
+  
+  // 检查食谱是否存在且可见
+  const recipe = await recipeModel.getRecipeById(recipeId)
+  if (!recipe) {
+    throw new Error('食谱不存在或不可见')
+  }
+  
+  await recipeModel.addFavorite(userId, recipeId, notes)
+  return { success: true }
+}
+
+/**
+ * 通过openId取消收藏
+ */
+const removeFavoriteByOpenId = async (openId, recipeId) => {
+  if (!openId || !recipeId) {
+    throw new Error('openId和食谱ID不能为空')
+  }
+  
+  const userId = await getUserIdByOpenId(openId)
+  await recipeModel.removeFavorite(userId, recipeId)
+  return { success: true }
+}
+
+/**
+ * 通过openId检查是否收藏
+ */
+const checkUserFavoriteByOpenId = async (openId, recipeId) => {
+  if (!openId || !recipeId) {
+    throw new Error('openId和食谱ID不能为空')
+  }
+  
+  const userId = await getUserIdByOpenId(openId)
+  return await recipeModel.checkUserFavorite(userId, recipeId)
 }
 
 /**
@@ -160,6 +241,10 @@ module.exports = {
   getRecipeDetail,
   getDailyMealDetail,
   getFoodSpecs,
-  getFoodDetail
+  getFoodDetail,
+  getUserFavoriteRecipesByOpenId,
+  checkUserFavoriteByOpenId,
+  addFavoriteByOpenId,
+  removeFavoriteByOpenId
 }
 
