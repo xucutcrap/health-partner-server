@@ -357,7 +357,7 @@ const checkInByOpenId = async (openId, recipeId, dailyMealId, dayNumber, notes =
   await recipeModel.upsertCheckInStats(userId, recipeId, totalDays, checkedDays, dayNumber, isCompleted ? 1 : 0)
   
   // 计算完成率
-  const completionRate = parseFloat(((checkedDays / totalDays) * 100).toFixed(2))
+  const completionRate = parseFloat(((checkedDays / totalDays) * 100).toFixed(0))
   
   return {
     checkInId: history[history.length - 1]?.id,
