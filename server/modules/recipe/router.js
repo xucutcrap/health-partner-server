@@ -123,5 +123,74 @@ router.get('/food-detail', handle(async (ctx) => {
   return success(detail)
 }))
 
+/**
+ * ==================== 打卡相关 ====================
+ */
+
+/**
+ * 获取打卡进度
+ * GET /api/v1/recipe/check-in/progress
+ * Query: { openId, recipeId }
+ */
+router.get('/check-in/progress', handle(async (ctx) => {
+  const { openId, recipeId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  if (!recipeId) {
+    return ctx.throw(400, 'recipeId 不能为空')
+  }
+  const progress = await recipeService.getCheckInProgressByOpenId(openId, recipeId)
+  return success(progress)
+}))
+
+/**
+ * 执行打卡
+ * POST /api/v1/recipe/check-in
+ * Body: { openId, recipeId, dailyMealId, dayNumber, notes }
+ */
+router.post('/check-in', handle(async (ctx) => {
+  const { openId, recipeId, dailyMealId, dayNumber, notes } = ctx.request.body
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await recipeService.checkInByOpenId(openId, recipeId, dailyMealId, dayNumber, notes)
+  return success(result)
+}))
+
+/**
+ * 重置打卡记录
+ * POST /api/v1/recipe/check-in/reset
+ * Body: { openId, recipeId }
+ */
+router.post('/check-in/reset', handle(async (ctx) => {
+  const { openId, recipeId } = ctx.request.body
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  if (!recipeId) {
+    return ctx.throw(400, 'recipeId 不能为空')
+  }
+  const result = await recipeService.resetCheckInByOpenId(openId, recipeId)
+  return success(result)
+}))
+
+/**
+ * 获取打卡历史
+ * GET /api/v1/recipe/check-in/history
+ * Query: { openId, recipeId }
+ */
+router.get('/check-in/history', handle(async (ctx) => {
+  const { openId, recipeId } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  if (!recipeId) {
+    return ctx.throw(400, 'recipeId 不能为空')
+  }
+  const history = await recipeService.getCheckInHistoryByOpenId(openId, recipeId)
+  return success(history)
+}))
+
 module.exports = router
 

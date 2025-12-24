@@ -308,6 +308,149 @@ const removeFavorite = async (userId, recipeId) => {
   return await query(sql, [userId, recipeId])
 }
 
+/**
+ * ==================== 打卡相关 ====================
+ */
+
+/**
+ * 获取用户在某个食谱的打卡进度
+ */
+const getCheckInProgress = async (userId, recipeId) => {
+  const sql = `
+    SELECT 
+      user_id as userId,
+      recipe_id as recipeId,
+      total_days as totalDays,
+      checked_days as checkedDays,
+      last_checked_day as lastCheckedDay,
+      last_check_in_date as lastCheckInDate,
+      start_date as startDate,
+      completion_date as completionDate,
+      is_completed as isCompleted
+    FROM recipe_check_in_stats
+    WHERE user_id = ? AND recipe_id = ?
+  `
+  return await queryOne(sql, [userId, recipeId])
+}
+
+/**
+ * 获取用户在某个食谱的所有打卡记录
+ */
+const getCheckInHistory = async (userId, recipeId) => {
+  const sql = `
+    SELECT 
+      ci.id,
+      ci.day_number as dayNumber,
+      ci.check_in_date as checkInDate,
+      ci.check_in_time as checkInTime,
+      ci.notes,
+      dm.day_name as dayName
+    FROM recipe_check_ins ci
+    LEFT JOIN recipe_daily_meals dm ON ci.daily_meal_id = dm.id
+    WHERE ci.user_id = ? AND ci.recipe_id = ?
+    ORDER BY ci.day_number ASC
+  `
+  return await query(sql, [userId, recipeId])
+}
+
+/**
+ * 检查某个周期是否已打卡
+ */
+const checkDayCheckedIn = async (userId, recipeId, dayNumber) => {
+  const sql = `
+    SELECT id
+    FROM recipe_check_ins
+    WHERE user_id = ? AND recipe_id = ? AND day_number = ?
+    LIMIT 1
+  `
+  const result = await queryOne(sql, [userId, recipeId, dayNumber])
+  return !!result
+}
+
+/**
+ * 获取已打卡的最大周期索引
+ */
+const getMaxCheckedDay = async (userId, recipeId) => {
+  const sql = `
+    SELECT MAX(day_number) as maxDay
+    FROM recipe_check_ins
+    WHERE user_id = ? AND recipe_id = ?
+  `
+  const result = await queryOne(sql, [userId, recipeId])
+  return result?.maxDay || 0
+}
+
+/**
+ * 执行打卡
+ */
+const createCheckIn = async (userId, recipeId, dailyMealId, dayNumber, notes = null) => {
+  const sql = `
+    INSERT INTO recipe_check_ins (user_id, recipe_id, daily_meal_id, day_number, check_in_date, notes)
+    VALUES (?, ?, ?, ?, CURDATE(), ?)
+  `
+  return await query(sql, [userId, recipeId, dailyMealId, dayNumber, notes])
+}
+
+/**
+ * 更新或创建打卡统计
+ */
+const upsertCheckInStats = async (userId, recipeId, totalDays, checkedDays, lastCheckedDay, isCompleted) => {
+  // 先查询是否存在记录，获取start_date
+  const existingSql = `
+    SELECT start_date as startDate
+    FROM recipe_check_in_stats
+    WHERE user_id = ? AND recipe_id = ?
+  `
+  const existing = await queryOne(existingSql, [userId, recipeId])
+  const startDate = existing?.startDate || null
+  
+  // 如果存在记录，执行更新
+  if (existing) {
+    const updateSql = `
+      UPDATE recipe_check_in_stats
+      SET 
+        total_days = ?,
+        checked_days = ?,
+        last_checked_day = ?,
+        last_check_in_date = CURDATE(),
+        completion_date = ${isCompleted ? 'CURDATE()' : 'NULL'},
+        is_completed = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = ? AND recipe_id = ?
+    `
+    return await query(updateSql, [totalDays, checkedDays, lastCheckedDay, isCompleted, userId, recipeId])
+  } else {
+    // 如果不存在，执行插入
+    const insertSql = `
+      INSERT INTO recipe_check_in_stats 
+        (user_id, recipe_id, total_days, checked_days, last_checked_day, 
+         last_check_in_date, start_date, completion_date, is_completed)
+      VALUES 
+        (?, ?, ?, ?, ?, CURDATE(), CURDATE(), ${isCompleted ? 'CURDATE()' : 'NULL'}, ?)
+    `
+    return await query(insertSql, [userId, recipeId, totalDays, checkedDays, lastCheckedDay, isCompleted])
+  }
+}
+
+/**
+ * 删除用户在某个食谱的所有打卡记录
+ */
+const deleteCheckInRecords = async (userId, recipeId) => {
+  // 删除打卡记录
+  const sql1 = `
+    DELETE FROM recipe_check_ins
+    WHERE user_id = ? AND recipe_id = ?
+  `
+  await query(sql1, [userId, recipeId])
+  
+  // 删除统计记录
+  const sql2 = `
+    DELETE FROM recipe_check_in_stats
+    WHERE user_id = ? AND recipe_id = ?
+  `
+  return await query(sql2, [userId, recipeId])
+}
+
 module.exports = {
   getAllGroups,
   getRecipesByGroupId,
@@ -321,6 +464,14 @@ module.exports = {
   getUserFavoriteRecipes,
   checkUserFavorite,
   addFavorite,
-  removeFavorite
+  removeFavorite,
+  // 打卡相关
+  getCheckInProgress,
+  getCheckInHistory,
+  checkDayCheckedIn,
+  getMaxCheckedDay,
+  createCheckIn,
+  upsertCheckInStats,
+  deleteCheckInRecords
 }
 
