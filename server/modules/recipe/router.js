@@ -65,9 +65,20 @@ router.post('/favorite', handle(async (ctx) => {
 /**
  * 取消收藏
  * DELETE /api/v1/recipe/favorite
+ * POST /api/v1/recipe/favorite/remove (兼容小程序)
  * Body: { openId, recipeId }
  */
 router.delete('/favorite', handle(async (ctx) => {
+  const { openId, recipeId } = ctx.request.body
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await recipeService.removeFavoriteByOpenId(openId, recipeId)
+  return success(result)
+}))
+
+// 兼容小程序的 POST 方式取消收藏
+router.post('/favorite/remove', handle(async (ctx) => {
   const { openId, recipeId } = ctx.request.body
   if (!openId) {
     return ctx.throw(400, 'openId 不能为空')
