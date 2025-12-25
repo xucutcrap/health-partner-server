@@ -102,12 +102,12 @@ const getFoodsByDailyMealId = async (dailyMealId) => {
       f.category as foodCategory,
       
       -- 规格信息（优先使用匹配的规格，否则使用默认规格）
-      COALESCE(fs_matched.spec_id, fs_default.spec_id) as specId,
-      COALESCE(fs_matched.spec_name, fs_default.spec_name, '默认') as specName,
-      COALESCE(fs_matched.refer_unit, fs_default.refer_unit, f.refer_unit) as referUnit,
-      COALESCE(fs_matched.unit_count, fs_default.unit_count, f.unit_count) as unitCount,
-      COALESCE(fs_matched.unit_weight, fs_default.unit_weight, f.unit_weight) as unitWeight,
-      COALESCE(fs_matched.is_default, fs_default.is_default, 1) as isDefault,
+      spec_info.spec_id as specId,
+      spec_info.spec_name as specName,
+      spec_info.refer_unit as referUnit,
+      spec_info.unit_count as unitCount,
+      spec_info.unit_weight as unitWeight,
+      spec_info.is_default as isDefault,
       
       -- 计算准确的卡路里
       CASE
@@ -115,26 +115,44 @@ const getFoodsByDailyMealId = async (dailyMealId) => {
         WHEN df.unit COLLATE utf8mb4_unicode_ci = '克' COLLATE utf8mb4_unicode_ci 
              OR df.unit COLLATE utf8mb4_unicode_ci = '毫升' COLLATE utf8mb4_unicode_ci THEN
             ROUND((df.food_count / 100.0) * f.calory_per_100g, 2)
-        -- 情况2: 用户使用参考单位，优先使用匹配的规格数据
-        WHEN COALESCE(fs_matched.unit_count, fs_default.unit_count, f.unit_count) IS NOT NULL THEN
-            ROUND((df.food_count * COALESCE(fs_matched.unit_count, fs_default.unit_count, f.unit_count) / 100.0) * f.calory_per_100g, 2)
-        -- 情况3: 无法匹配单位，返回NULL
+        -- 情况2: 用户使用参考单位，使用规格数据
+        WHEN spec_info.unit_count IS NOT NULL THEN
+            ROUND((df.food_count * spec_info.unit_count / 100.0) * f.calory_per_100g, 2)
+        -- 情况3: 使用食物表的默认数据
+        WHEN f.unit_count IS NOT NULL THEN
+            ROUND((df.food_count * f.unit_count / 100.0) * f.calory_per_100g, 2)
+        -- 情况4: 无法匹配单位，返回NULL
         ELSE NULL
       END AS foodCalories,
       
       -- 单位卡路里（每个单位的卡路里）
-      ROUND((COALESCE(fs_matched.unit_count, fs_default.unit_count, f.unit_count) / 100.0) * f.calory_per_100g, 2) as caloriesPerUnit
+      ROUND((COALESCE(spec_info.unit_count, f.unit_count) / 100.0) * f.calory_per_100g, 2) as caloriesPerUnit
       
     FROM daily_foods df
     LEFT JOIN foods f ON df.food_id = f.food_id
     
-    -- 匹配用户选择的具体规格
-    LEFT JOIN food_specs fs_matched ON f.food_id = fs_matched.food_id 
-      AND df.unit COLLATE utf8mb4_unicode_ci = fs_matched.refer_unit COLLATE utf8mb4_unicode_ci
-    
-    -- 获取默认规格作为备选
-    LEFT JOIN food_specs fs_default ON f.food_id = fs_default.food_id 
-      AND fs_default.is_default = 1
+    -- 使用子查询获取唯一的规格信息（优先匹配单位，其次默认规格）
+    LEFT JOIN (
+      SELECT 
+        food_id,
+        spec_id,
+        spec_name,
+        refer_unit,
+        unit_count,
+        unit_weight,
+        is_default
+      FROM food_specs fs1
+      WHERE (food_id, is_default, spec_id) IN (
+        SELECT 
+          food_id,
+          MAX(is_default) as is_default,
+          MIN(spec_id) as spec_id
+        FROM food_specs
+        GROUP BY food_id
+      )
+    ) spec_info ON f.food_id = spec_info.food_id
+      AND (df.unit COLLATE utf8mb4_unicode_ci = spec_info.refer_unit COLLATE utf8mb4_unicode_ci 
+           OR spec_info.is_default = 1)
     
     WHERE df.daily_meal_id = ?
     ORDER BY 
