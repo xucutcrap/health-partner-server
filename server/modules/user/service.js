@@ -33,11 +33,11 @@ async function getOpenIdByCode(code) {
     const { openid, session_key, errcode, errmsg } = response.data
     
     if (errcode) {
-      throw new BusinessError(errmsg || '获取 openId 失败')
+      throw BusinessError(errmsg || '获取 openId 失败')
     }
     
     if (!openid) {
-      throw new BusinessError('未获取到 openId')
+      throw BusinessError('未获取到 openId')
     }
     
     // 创建或更新用户（如果不存在则创建）
@@ -59,7 +59,7 @@ async function getOpenIdByCode(code) {
     if (error.name === 'BusinessError') {
       throw error
     }
-    throw new BusinessError('获取 openId 失败：' + error.message)
+    throw BusinessError('获取 openId 失败:' + error.message)
   }
 }
 
@@ -68,7 +68,7 @@ async function getOpenIdByCode(code) {
  */
 async function getUserInfoByOpenId(openId) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
@@ -90,7 +90,7 @@ async function getUserInfoByOpenId(openId) {
  */
 async function updateUserInfo(openId, userInfo) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
   
   const updateData = {}
@@ -102,7 +102,7 @@ async function updateUserInfo(openId, userInfo) {
   }
   
   if (Object.keys(updateData).length === 0) {
-    throw new BusinessError('没有需要更新的数据')
+    throw BusinessError('没有需要更新的数据')
   }
   
   const user = await userModel.createOrUpdateByOpenId(openId, updateData)
@@ -120,12 +120,12 @@ async function updateUserInfo(openId, userInfo) {
  */
 async function getUserProfile(openId) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
   
   const profile = await profileModel.findByUserId(user.id)
@@ -158,12 +158,12 @@ async function getUserProfile(openId) {
  */
 async function updateUserProfile(openId, profileData, referrerId = null, channel = null) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
   
   // 计算 BMI(后端计算,确保准确性)
@@ -225,12 +225,12 @@ async function updateUserProfile(openId, profileData, referrerId = null, channel
  */
 async function getUserGoals(openId) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
   
   const goals = await goalModel.findByUserId(user.id)
@@ -257,12 +257,12 @@ async function getUserGoals(openId) {
  */
 async function updateUserGoals(openId, goalData) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
   
   const updateData = {}
@@ -320,12 +320,12 @@ async function updateUserGoals(openId, goalData) {
  */
 async function getTodayProgress(openId) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
   
   // 获取今日完成情况
@@ -352,12 +352,12 @@ async function getTodayProgress(openId) {
  */
 async function getHealthRecords(openId, options = {}) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
   
   const records = await healthRecordModel.findByUserId(user.id, options)
@@ -382,16 +382,16 @@ async function getHealthRecords(openId, options = {}) {
  */
 async function addHealthRecord(openId, recordData) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
   
   if (!recordData.recordType || recordData.value === undefined) {
-    throw new BusinessError('记录类型和数值不能为空')
+    throw BusinessError('记录类型和数值不能为空')
   }
   
   // 根据记录类型设置单位
@@ -433,26 +433,26 @@ async function addHealthRecord(openId, recordData) {
  */
 async function deleteHealthRecord(openId, recordId) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
   
   if (!recordId) {
-    throw new BusinessError('记录ID不能为空')
+    throw BusinessError('记录ID不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
   
   // 验证记录是否属于该用户
   const record = await healthRecordModel.findById(recordId)
   if (!record) {
-    throw new BusinessError('记录不存在')
+    throw BusinessError('记录不存在')
   }
   
   if (record.user_id !== user.id) {
-    throw new BusinessError('无权删除该记录')
+    throw BusinessError('无权删除该记录')
   }
   
   await healthRecordModel.deleteById(recordId, user.id)
@@ -504,12 +504,12 @@ function needsDistance(exerciseType) {
  */
 async function getExerciseRecords(openId, options = {}) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
   
   const records = await exerciseModel.findByUserId(user.id, options)
@@ -541,12 +541,12 @@ async function getExerciseRecords(openId, options = {}) {
  */
 async function getWeekExerciseRecords(openId) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
   
   const records = await exerciseModel.getWeekRecords(user.id)
@@ -568,18 +568,18 @@ async function getWeekExerciseRecords(openId) {
  */
 async function addExerciseRecord(openId, recordData) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
 
   const { exerciseType, duration, distance, caloriesPerMinute, exerciseId, icon } = recordData
 
   if (!exerciseType || !duration) {
-    throw new BusinessError('运动类型和时长不能为空')
+    throw BusinessError('运动类型和时长不能为空')
   }
 
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
 
   // 自动计算卡路里（支持前端传入卡路里参数）
@@ -610,21 +610,21 @@ async function addExerciseRecord(openId, recordData) {
  */
 async function deleteExerciseRecord(openId, recordId) {
   if (!openId || !recordId) {
-    throw new BusinessError('openId 和 recordId 不能为空')
+    throw BusinessError('openId 和 recordId 不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
   
   const record = await exerciseModel.findById(recordId)
   if (!record) {
-    throw new BusinessError('记录不存在')
+    throw BusinessError('记录不存在')
   }
   
   if (record.user_id !== user.id) {
-    throw new BusinessError('无权删除该记录')
+    throw BusinessError('无权删除该记录')
   }
   
   await exerciseModel.deleteById(recordId, user.id)
@@ -636,12 +636,12 @@ async function deleteExerciseRecord(openId, recordId) {
  */
 async function getDietRecords(openId, options = {}) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
   
   const records = await dietModel.findByUserId(user.id, options)
@@ -671,12 +671,12 @@ async function getDietRecords(openId, options = {}) {
  */
 async function addDietRecord(openId, recordData) {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
   
   const result = await dietModel.create({
@@ -692,21 +692,21 @@ async function addDietRecord(openId, recordData) {
  */
 async function deleteDietRecord(openId, recordId) {
   if (!openId || !recordId) {
-    throw new BusinessError('openId 和 recordId 不能为空')
+    throw BusinessError('openId 和 recordId 不能为空')
   }
   
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
   
   const record = await dietModel.findById(recordId)
   if (!record) {
-    throw new BusinessError('记录不存在')
+    throw BusinessError('记录不存在')
   }
   
   if (record.user_id !== user.id) {
-    throw new BusinessError('无权删除该记录')
+    throw BusinessError('无权删除该记录')
   }
   
   await dietModel.deleteById(recordId, user.id)
@@ -721,12 +721,12 @@ async function deleteDietRecord(openId, recordId) {
  */
 async function recordShare(openId, scene = 1, page = 'pages/index/index') {
   if (!openId) {
-    throw new BusinessError('openId 不能为空')
+    throw BusinessError('openId 不能为空')
   }
 
   const user = await userModel.findByOpenId(openId)
   if (!user) {
-    throw new BusinessError('用户不存在')
+    throw BusinessError('用户不存在')
   }
 
   const result = await shareModel.createShareRecord(user.id, scene, page)
@@ -739,7 +739,7 @@ async function recordShare(openId, scene = 1, page = 'pages/index/index') {
  */
 async function getUserShareStatus(openId) {
     if (!openId) {
-      throw new BusinessError('openId 不能为空')
+      throw BusinessError('openId 不能为空')
     }
   
     const user = await userModel.findByOpenId(openId)
