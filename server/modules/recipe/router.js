@@ -203,5 +203,19 @@ router.get('/check-in/history', handle(async (ctx) => {
   return success(history)
 }))
 
+// ...
+// (Added at the end or appropriate place)
+// Let's add it near /list
+// But to minimize diff context issues, will append before module.exports
+
+/**
+ * 获取推荐食谱
+ * GET /api/v1/recipe/recommend
+ */
+router.get('/recommend', handle(async (ctx) => {
+  const recipes = await recipeService.getRecommendedRecipes()
+  return success(recipes)
+}))
+
 module.exports = router
 

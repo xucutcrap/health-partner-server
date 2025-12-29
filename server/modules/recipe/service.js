@@ -412,6 +412,13 @@ const getCheckInHistoryByOpenId = async (openId, recipeId) => {
   }
 }
 
+/**
+ * 获取推荐食谱列表
+ */
+const getRecommendedRecipes = async () => {
+  return await recipeModel.getRecommendedRecipes(6)
+}
+
 module.exports = {
   getAllGroups,
   getRecipesByGroupId,
@@ -427,5 +434,7 @@ module.exports = {
   getCheckInProgressByOpenId,
   checkInByOpenId,
   resetCheckInByOpenId,
-  getCheckInHistoryByOpenId
+  getCheckInHistoryByOpenId,
+  getRecommendedRecipes
 }
+

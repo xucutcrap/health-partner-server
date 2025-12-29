@@ -458,6 +458,26 @@ const deleteCheckInRecords = async (userId, recipeId) => {
   return await query(sql2, [userId, recipeId])
 }
 
+/**
+ * 获取推荐食谱
+ */
+const getRecommendedRecipes = async (limit = 6) => {
+  const sql = `
+    SELECT 
+      id,
+      name,
+      intro,
+      pic_url as picUrl,
+      promotion,
+      recommend_order as recommendOrder
+    FROM recipes
+    WHERE recommend_order IS NOT NULL
+    ORDER BY recommend_order ASC
+    LIMIT ?
+  `
+  return await query(sql, [limit])
+}
+
 module.exports = {
   getAllGroups,
   getRecipesByGroupId,
@@ -479,6 +499,8 @@ module.exports = {
   getMaxCheckedDay,
   createCheckIn,
   upsertCheckInStats,
-  deleteCheckInRecords
+  deleteCheckInRecords,
+  getRecommendedRecipes
 }
+
 
