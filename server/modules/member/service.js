@@ -5,18 +5,15 @@ const { database, errors } = require('../../core')
 const userModel = require('../user/model')
 const { BusinessError } = errors
 const config = require('../../../config')
-const axios = require('axios')
-const crypto = require('crypto')
-const xml2js = require('xml2js')
 
 // 数据库操作
 const orderDb = database.createDbOperations('member_orders')
 
 // 商品列表配置
 const PRODUCTS = [
-  { id: 'month', name: '月度会员', price: 9.9, duration_days: 30, original_price: 19.9 },
-  { id: 'quarter', name: '季度会员', price: 25.0, duration_days: 90, original_price: 59.9 },
-  { id: 'year', name: '年度会员', price: 88.0, duration_days: 365, original_price: 199.9, recommend: true }
+  { id: 'month', name: '月度会员', price: 0.1, duration_days: 30, original_price: 19.9 },
+  { id: 'quarter', name: '季度会员', price: 29.9, duration_days: 90, original_price: 59.9 },
+  { id: 'year', name: '年度会员', price: 49.9, duration_days: 365, original_price: 199.9, recommend: true }
 ]
 
 /**
@@ -98,7 +95,7 @@ async function callWechatUnifiedOrder(openid, orderNo, price, ip) {
  * @param {string} transactionId 微信支付流水号
  */
 async function handlePaymentSuccess(orderNo, transactionId) {
-  const order = await orderDb.queryOne('SELECT * FROM member_orders WHERE order_no = ?', [orderNo])
+  const order = await database.queryOne('SELECT * FROM member_orders WHERE order_no = ?', [orderNo])
   if (!order) {
     throw BusinessError('订单不存在')
   }
@@ -108,7 +105,7 @@ async function handlePaymentSuccess(orderNo, transactionId) {
   }
 
   // 1. 更新订单状态
-  await orderDb.query(
+  await database.query(
     'UPDATE member_orders SET status = ?, transaction_id = ?, paid_at = NOW() WHERE id = ?', 
     ['success', transactionId, order.id]
   )
