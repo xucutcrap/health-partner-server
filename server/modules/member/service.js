@@ -75,12 +75,15 @@ async function createOrder(userId, productId, clientIp) {
           openid: user.openid
         }
       })
+
+      console.log('WeChat Order Response:', res)
       
       // 3.2 获取前端支付参数
-      if (res && res.prepay_id) {
-        paymentParams = pay.get_pay_params(res.prepay_id)
+      if (res.status === 200 && res.data) {
+        // wechatpay-node-v3 已经在内部处理了 prepay_id 并返回了签名后的参数
+        paymentParams = res.data
       } else {
-        throw new Error('Prepay ID missing')
+        throw new Error('WeChat Pay Error: ' + JSON.stringify(res))
       }
     } catch (e) {
       console.error('WeChat Pay Create Order Failed:', e)

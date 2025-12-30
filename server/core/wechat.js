@@ -19,6 +19,7 @@ try {
       publicKey: fs.readFileSync(path.resolve(config.wechat.certPath)),
       privateKey: fs.readFileSync(path.resolve(config.wechat.keyPath)),
       key: config.wechat.apiV3Key,
+      notifyUrl: config.wechat.notifyUrl
     })
     console.log('WeChat Pay initialized successfully.')
   } else {
