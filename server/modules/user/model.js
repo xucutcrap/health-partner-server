@@ -33,6 +33,27 @@ async function createOrUpdateByOpenId(openId, userData = {}) {
       updateFields.push("avatar_url = ?");
       updateValues.push(userData.avatar_url);
     }
+    if (userData.height !== undefined) {
+      updateFields.push("height = ?");
+      updateValues.push(userData.height);
+    }
+    if (userData.weight !== undefined) {
+      updateFields.push("weight = ?");
+      updateValues.push(userData.weight);
+    }
+    if (userData.age !== undefined) {
+      updateFields.push("age = ?");
+      updateValues.push(userData.age);
+    }
+    if (userData.gender !== undefined) {
+      updateFields.push("gender = ?");
+      updateValues.push(userData.gender);
+    }
+    // 注意：member_expire_at 通常通过支付回调更新，但也允许在此更新
+    if (userData.member_expire_at !== undefined) {
+      updateFields.push("member_expire_at = ?");
+      updateValues.push(userData.member_expire_at);
+    }
 
     if (updateFields.length > 0) {
       updateValues.push(openId);
@@ -50,6 +71,11 @@ async function createOrUpdateByOpenId(openId, userData = {}) {
       openid: openId,
       nickname: userData.nickname || null,
       avatar_url: userData.avatar_url || null,
+      height: userData.height || null,
+      weight: userData.weight || null,
+      age: userData.age || null,
+      gender: userData.gender || null,
+      member_expire_at: null
     };
     await userDb.create(insertData);
     return await findByOpenId(openId);

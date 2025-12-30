@@ -8,27 +8,19 @@ CREATE TABLE IF NOT EXISTS `users` (
   `openid` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '微信OpenID，唯一标识',
   `nickname` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '微信昵称',
   `avatar_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '微信头像',
+  `height` decimal(5,2) DEFAULT NULL COMMENT '身高(cm)',
+  `weight` decimal(5,2) DEFAULT NULL COMMENT '体重(kg)',
+  `age` int(11) DEFAULT NULL COMMENT '年龄',
+  `gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT '男' COMMENT '性别：男/女',
+  `member_expire_at` datetime DEFAULT NULL COMMENT '会员过期时间',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_users_openid` (`openid`) COMMENT '确保OpenID唯一'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 
--- 2. 用户健康档案表 (user_profiles)
-CREATE TABLE IF NOT EXISTS `user_profiles` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) NOT NULL COMMENT '用户ID',
-  `height` decimal(5,2) DEFAULT NULL COMMENT '身高(cm)',
-  `weight` decimal(5,2) DEFAULT NULL COMMENT '体重(kg)',
-  `age` int(11) DEFAULT NULL COMMENT '年龄',
-  `gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT '男' COMMENT '性别：男/女',
-  `body_fat` decimal(5,2) DEFAULT NULL COMMENT '体脂率(%)',
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_user_profiles_user_id` (`user_id`),
-  CONSTRAINT `fk_user_profiles_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户健康档案表';
+-- 2. 用户健康档案表 (user_profiles) - 已废弃，合并至 users 表
+-- CREATE TABLE IF NOT EXISTS `user_profiles` ...
 
 -- 3. 用户目标设置表 (user_goals)
 CREATE TABLE IF NOT EXISTS `user_goals` (

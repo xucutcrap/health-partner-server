@@ -3,7 +3,7 @@
  */
 const { errors } = require('../../core')
 const userModel = require('./model')
-const profileModel = require('./profile-model')
+// const profileModel = require('./profile-model') // 已合并到 userModel
 const goalModel = require('./goal-model')
 const recordModel = require('./record-model')
 const healthRecordModel = require('./health-record-model')
@@ -43,8 +43,7 @@ async function getOpenIdByCode(code) {
     // 创建或更新用户（如果不存在则创建）
     const user = await userModel.createOrUpdateByOpenId(openid)
     
-    // 跨表查询健康档案信息
-    const profile = await profileModel.findByUserId(user.id)
+    // 健康档案信息现在直接在 user 对象上 (字段已合并)
     
     return {
       openId: openid,
@@ -52,8 +51,10 @@ async function getOpenIdByCode(code) {
       sessionKey: session_key,
       nickname: user.nickname || null,
       avatarUrl: user.avatar_url || null,
-      // 健康档案信息
-      profile: !!profile
+      // 健康档案信息: 只要有身高，就算有档案
+      profile: !!user.height,
+      memberExpireAt: user.member_expire_at || null,
+      isMember: user.member_expire_at && new Date(user.member_expire_at) > new Date()
     }
   } catch (error) {
     if (error.name === 'BusinessError') {
@@ -116,7 +117,7 @@ async function updateUserInfo(openId, userInfo) {
 }
 
 /**
- * 根据 openId 获取用户健康档案
+ * 根据 openId 获取用户健康档案 (从 users 表直接获取)
  */
 async function getUserProfile(openId) {
   if (!openId) {
@@ -128,8 +129,6 @@ async function getUserProfile(openId) {
     throw BusinessError('用户不存在')
   }
   
-  const profile = await profileModel.findByUserId(user.id)
-  
   // 获取最近一次体重记录（代替档案中的体重）
   const latestWeightRecord = await healthRecordModel.findByUserId(user.id, {
     recordType: 'weight',
@@ -139,14 +138,16 @@ async function getUserProfile(openId) {
   // 如果有体重记录，使用最新记录；否则使用档案体重
   const currentWeight = (latestWeightRecord && latestWeightRecord.length > 0) 
     ? parseFloat(latestWeightRecord[0].value) 
-    : (profile?.weight || null)
+    : (user.weight || null)
 
   return {
-    height: profile?.height || null,
+    height: user.height || null,
     weight: currentWeight,
-    originalWeight: profile?.weight || null,
-    age: profile?.age || null,
-    gender: profile?.gender || '男'
+    originalWeight: user.weight || null,
+    age: user.age || null,
+    gender: user.gender || '男',
+    memberExpireAt: user.member_expire_at || null,
+    isMember: user.member_expire_at && new Date(user.member_expire_at) > new Date()
   }
 }
 
@@ -180,7 +181,8 @@ async function updateUserProfile(openId, profileData, referrerId = null, channel
     gender: profileData.gender
   }
   
-  const profile = await profileModel.createOrUpdateByUserId(user.id, updateData)
+  // 直接更新 users 表
+  const updatedUser = await userModel.createOrUpdateByOpenId(openId, updateData)
   
   // 处理推荐关系
   if (referrerId || channel) {
@@ -212,10 +214,10 @@ async function updateUserProfile(openId, profileData, referrerId = null, channel
   }
   
   return {
-    height: profile.height,
-    originalWeight: profile.weight,
-    age: profile.age,
-    gender: profile.gender,
+    height: updatedUser.height,
+    originalWeight: updatedUser.weight,
+    age: updatedUser.age,
+    gender: updatedUser.gender,
     bmi: bmi ? parseFloat(bmi.toFixed(1)) : null
   }
 }
