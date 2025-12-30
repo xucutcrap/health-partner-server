@@ -37,19 +37,27 @@ router.post('/orders', handle(async (ctx) => {
   return success(result)
 }))
 
+
+
 /**
- * 支付回调测试 (开发环境用)
- * POST /api/v1/member/mock-pay
+ * 微信支付回调通知
+ * POST /api/v1/member/notification
  */
-router.post('/mock-pay', handle(async (ctx) => {
-  const { orderNo } = ctx.request.body
-  
-  if (!orderNo) {
-    return ctx.throw(400, '订单号不能为空')
+router.post('/notification', async (ctx) => {
+  // 注意：回调需要返回特定的格式给微信，所以这里不用 handle/success 包装
+  try {
+    const headers = ctx.headers
+    const body = ctx.request.body
+    
+    await memberService.verifyAndHandleNotification(headers, body)
+    
+    ctx.status = 200
+    ctx.body = { code: 'SUCCESS', message: '成功' }
+  } catch (err) {
+    console.error('Notify Error:', err)
+    ctx.status = 500
+    ctx.body = { code: 'FAIL', message: err.message || '处理失败' }
   }
-  
-  const result = await memberService.mockPay(orderNo)
-  return success(result, '支付成功')
-}))
+})
 
 module.exports = router

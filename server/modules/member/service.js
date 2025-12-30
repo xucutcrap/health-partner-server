@@ -26,6 +26,11 @@ async function getProducts() {
 /**
  * 创建会员订单
  */
+const pay = require('../../core/wechat')
+
+/**
+ * 创建会员订单
+ */
 async function createOrder(userId, productId, clientIp) {
   const product = PRODUCTS.find(p => p.id === productId)
   if (!product) {
@@ -51,41 +56,45 @@ async function createOrder(userId, productId, clientIp) {
   }
   const result = await orderDb.create(orderData)
   
-  // 3. 调用微信统一下单接口 (Mock或真实)
-  // 这里暂时为了演示，如果未配置微信支付，则直接返回模拟参数
-  // 实际必须配置 config.wechat.mchId 等
+  // 3. 调用微信统一下单接口
   let paymentParams = {}
+
+  console.log('pay', pay)
   
-  if (config.wechat && config.wechat.mchId) {
-    paymentParams = await callWechatUnifiedOrder(user.openid, orderNo, product.price, clientIp)
-  } else {
-    // 模拟环境: 返回直接能调起支付的假参数，或者前端直接跳过支付
-    console.warn('未配置微信支付，使用模拟参数')
-    paymentParams = {
-      timeStamp: Math.floor(Date.now() / 1000).toString(),
-      nonceStr: Math.random().toString(36).substr(2, 15),
-      package: `prepay_id=mock_${orderNo}`,
-      signType: 'MD5',
-      paySign: 'mock_sign',
-      orderNo: orderNo // 返回给前端用于轮询或测试
+  if (pay) {
+    try {
+      // 3.1 V3 JSAPI 下单
+      const res = await pay.transactions_jsapi({
+        description: `番茄控卡-${product.name}`,
+        out_trade_no: orderNo,
+        notify_url: config.wechat.notifyUrl, // 需在config中配置
+        amount: {
+          total: Math.round(product.price * 100) // 单位：分
+        },
+        payer: {
+          openid: user.openid
+        }
+      })
+      
+      // 3.2 获取前端支付参数
+      if (res && res.prepay_id) {
+        paymentParams = pay.get_pay_params(res.prepay_id)
+      } else {
+        throw new Error('Prepay ID missing')
+      }
+    } catch (e) {
+      console.error('WeChat Pay Create Order Failed:', e)
+      throw BusinessError('微信下单失败，请稍后重试')
     }
+  } else {
+    // 未配置支付时抛出明确错误
+    throw BusinessError('支付功能未开启')
   }
 
   return {
     orderId: result.insertId,
     orderNo,
     paymentParams
-  }
-}
-
-/**
- * 调用微信统一下单 (简化版示意)
- */
-async function callWechatUnifiedOrder(openid, orderNo, price, ip) {
-  // 实际开发需引入 wechat-pay 库或自行封装签名逻辑
-  // 这里仅占位
-  return {
-      // ...
   }
 }
 
@@ -113,7 +122,6 @@ async function handlePaymentSuccess(orderNo, transactionId) {
   // 2. 更新用户会员时间
   const product = PRODUCTS.find(p => p.id === order.product_id)
   if (!product) {
-     // 理论不应发生，除非配置改了
      console.error('Product not found for order:', order)
      return
   }
@@ -139,15 +147,33 @@ async function handlePaymentSuccess(orderNo, transactionId) {
 }
 
 /**
- * 模拟支付成功 (仅用于测试)
+ * 验证并处理微信支付回调
  */
-async function mockPay(orderNo) {
-    return await handlePaymentSuccess(orderNo, 'mock_trans_' + Date.now())
+async function verifyAndHandleNotification(headers, body) {
+  if (!pay) {
+    throw BusinessError('微信支付未初始化')
+  }
+
+  // wechatpay-node-v3 verify_notification 需要传入 headers 和 body
+  // body 应该是 JSON 对象
+  try {
+    const result = await pay.verify_notification(headers, body)
+    
+    if (result.status === 'success') {
+      const { out_trade_no, transaction_id } = result.resource
+      await handlePaymentSuccess(out_trade_no, transaction_id)
+      return true
+    }
+  } catch (err) {
+    console.error('WeChat Notification Verify Failed:', err)
+    throw BusinessError('签名验证失败')
+  }
+  return false
 }
 
 module.exports = {
   getProducts,
   createOrder,
   handlePaymentSuccess,
-  mockPay
+  verifyAndHandleNotification
 }

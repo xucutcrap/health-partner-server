@@ -29,7 +29,8 @@
     "mysql": "^2.18.1",
     "node-cache": "^5.1.2",
     "openai": "^4.87.3",
-    "validator": "^6.2.0"
+    "validator": "^6.2.0",
+    "wechatpay-node-v3": "^2.2.1"
   },
   "devDependencies": {
     "nodemon": "^2.0.0"
