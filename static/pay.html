@@ -253,8 +253,7 @@
             WeixinJSBridge.invoke('getBrandWCPayRequest', paymentParams, function(res) {
                 if (res.err_msg === "get_brand_wcpay_request:ok") {
                     // 2. 支付成功状态
-                    payBtn.className = 'pay-btn success';
-                    payBtn.textContent = '✅ 支付成功';
+                    payBtn.textContent = '支付成功';
                     
                     // 延迟返回，让用户看到成功状态
                     setTimeout(() => {
