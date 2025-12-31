@@ -182,13 +182,13 @@ async function createNativeOrder(userId, productId) {
       
       console.log('WeChat Native Order Response:', res)
 
-      if (res.status === 200 && res.code_url) {
+      if (res.status === 200 && res.data && res.data.code_url) {
           // 保存参数以防万一
           await database.query(
             'UPDATE member_orders SET payment_params = ? WHERE id = ?',
-            [JSON.stringify({ code_url: res.code_url }), result.insertId]
+            [JSON.stringify({ code_url: res.data.code_url }), result.insertId]
           )
-          return res.code_url
+          return res.data.code_url
       } else {
         throw new Error('WeChat Native Pay Error: ' + JSON.stringify(res))
       }
