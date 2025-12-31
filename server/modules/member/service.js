@@ -294,7 +294,6 @@ async function verifyAndHandleNotification(headers, body) {
     
     // 2. 验证签名
     console.log('🔐 开始签名验证...')
-    console.log('提示: 首次验证时会自动从微信服务器拉取平台证书')
     
     let isValid = false
     try {
@@ -309,13 +308,13 @@ async function verifyAndHandleNotification(headers, body) {
       console.error('❌ 签名验证过程出错:', verifyErr.message)
       console.error('错误堆栈:', verifyErr.stack)
       
-      // 如果是证书拉取失败,提供详细的解决方案
-      if (verifyErr.message.includes('拉取平台证书失败')) {
+      // 如果是证书相关错误,提供详细的解决方案
+      if (verifyErr.message.includes('拉取平台证书失败') || verifyErr.message.includes('证书')) {
         console.error('💡 解决方案:')
-        console.error('1. 检查服务器网络是否能访问微信支付API (https://api.mch.weixin.qq.com)')
-        console.error('2. 检查防火墙/安全组是否允许出站HTTPS请求')
-        console.error('3. 检查 config.wechat.mchId 和 config.wechat.apiV3Key 是否配置正确')
-        console.error('4. 或者使用微信官方工具手动下载平台证书')
+        console.error('1. 确认 cert/wechatpay.pem 文件存在且格式正确')
+        console.error('2. 确认 config.wechat.wxPayPublicId 配置正确（公钥模式）')
+        console.error('3. 检查服务器网络是否能访问微信支付API (https://api.mch.weixin.qq.com)')
+        console.error('4. 检查 config.wechat.mchId 和 config.wechat.apiV3Key 是否配置正确')
       }
       
       throw verifyErr
