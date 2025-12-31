@@ -11,7 +11,7 @@ const crypto = require('crypto')
 router.get('/', async (ctx) => {
   try {
     const { signature, timestamp, nonce, echostr } = ctx.query
-    const token = config.wechat.message.token
+    const token = config.message.token
 
     // 1. 将 token, timestamp, nonce 三个参数进行字典序排序
     const arr = [token, timestamp, nonce].sort()
