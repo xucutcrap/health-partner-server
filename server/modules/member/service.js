@@ -296,28 +296,56 @@ async function verifyAndHandleNotification(headers, body) {
     console.log('🔐 开始签名验证...')
     
     let isValid = false
-    try {
-      isValid = await pay.verifySign({
-        timestamp,
-        nonce,
-        body,
-        serial,
-        signature
-      })
-    } catch (verifyErr) {
-      console.error('❌ 签名验证过程出错:', verifyErr.message)
-      console.error('错误堆栈:', verifyErr.stack)
+    
+    // 检查是否为公钥模式
+    const isPublicKeyMode = serial.startsWith('PUB_KEY_ID_')
+    
+    if (isPublicKeyMode) {
+      // 公钥模式：手动验签
+      console.log('📌 使用公钥模式验签')
       
-      // 如果是证书相关错误,提供详细的解决方案
-      if (verifyErr.message.includes('拉取平台证书失败') || verifyErr.message.includes('证书')) {
-        console.error('💡 解决方案:')
-        console.error('1. 确认 cert/wechatpay.pem 文件存在且格式正确')
-        console.error('2. 确认 config.wechat.wxPayPublicId 配置正确（公钥模式）')
-        console.error('3. 检查服务器网络是否能访问微信支付API (https://api.mch.weixin.qq.com)')
-        console.error('4. 检查 config.wechat.mchId 和 config.wechat.apiV3Key 是否配置正确')
+      try {
+        const crypto = require('crypto')
+        const fs = require('fs')
+        const path = require('path')
+        
+        // 读取微信支付公钥
+        const publicKeyPath = path.resolve(__dirname, '../../cert/wechatpay.pem')
+        if (!fs.existsSync(publicKeyPath)) {
+          throw new Error('微信支付公钥文件不存在: ' + publicKeyPath)
+        }
+        
+        const wxPayPublicKey = fs.readFileSync(publicKeyPath, 'utf8')
+        
+        // 构建待验签字符串
+        const message = `${timestamp}\n${nonce}\n${JSON.stringify(body)}\n`
+        
+        // 验签
+        const verify = crypto.createVerify('RSA-SHA256')
+        verify.update(message)
+        isValid = verify.verify(wxPayPublicKey, signature, 'base64')
+        
+        console.log('公钥验签结果:', isValid ? '✅ 通过' : '❌ 失败')
+      } catch (err) {
+        console.error('❌ 公钥验签失败:', err.message)
+        throw BusinessError('公钥验签失败: ' + err.message)
       }
+    } else {
+      // 平台证书模式：使用SDK验签
+      console.log('📌 使用平台证书模式验签')
       
-      throw verifyErr
+      try {
+        isValid = await pay.verifySign({
+          timestamp,
+          nonce,
+          body,
+          serial,
+          signature
+        })
+      } catch (verifyErr) {
+        console.error('❌ 签名验证过程出错:', verifyErr.message)
+        throw verifyErr
+      }
     }
     
     if (!isValid) {
