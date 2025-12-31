@@ -271,10 +271,93 @@ async function verifyAndHandleNotification(headers, body) {
   return false
 }
 
+/**
+ * 获取 JSAPI 支付参数（用于 H5 页面）
+ */
+async function getJsapiParams(orderId, openid) {
+  // 1. 查询订单
+  const order = await database.queryOne('SELECT * FROM member_orders WHERE id = ?', [orderId])
+  if (!order) {
+    throw BusinessError('订单不存在')
+  }
+
+  if (order.status === 'success') {
+    throw BusinessError('订单已支付')
+  }
+
+  // 2. 查询用户
+  const user = await database.queryOne('SELECT * FROM users WHERE id = ?', [order.user_id])
+  if (!user || user.openid !== openid) {
+    throw BusinessError('用户信息不匹配')
+  }
+
+  // 3. 如果订单已有支付参数且未过期，直接返回
+  if (order.payment_params) {
+    try {
+      const params = JSON.parse(order.payment_params)
+      // 检查是否是 JSAPI 参数（有 timeStamp 字段）
+      if (params.timeStamp) {
+        return {
+          orderNo: order.order_no,
+          productName: order.product_name,
+          amount: parseFloat(order.amount),
+          paymentParams: params
+        }
+      }
+    } catch (e) {
+      console.error('Parse payment_params failed:', e)
+    }
+  }
+
+  // 4. 重新调用微信 JSAPI 下单
+  if (!pay) {
+    throw BusinessError('支付未配置')
+  }
+
+  try {
+    const product = PRODUCTS.find(p => p.id === order.product_id)
+    
+    const res = await pay.transactions_jsapi({
+      description: `番茄控卡-${order.product_name}`,
+      out_trade_no: order.order_no,
+      notify_url: config.wechat.notifyUrl,
+      amount: {
+        total: Math.round(order.amount * 100)
+      },
+      payer: {
+        openid: user.openid
+      }
+    })
+
+    console.log('JSAPI Order Response:', res)
+
+    if (res.status === 200 && res.data) {
+      // 保存支付参数
+      await database.query(
+        'UPDATE member_orders SET payment_params = ? WHERE id = ?',
+        [JSON.stringify(res.data), order.id]
+      )
+
+      return {
+        orderNo: order.order_no,
+        productName: order.product_name,
+        amount: parseFloat(order.amount),
+        paymentParams: res.data
+      }
+    } else {
+      throw new Error('WeChat JSAPI Pay Error: ' + JSON.stringify(res))
+    }
+  } catch (e) {
+    console.error('JSAPI Order Failed:', e)
+    throw BusinessError('获取支付参数失败')
+  }
+}
+
 module.exports = {
   getProducts,
   createOrder,
   createNativeOrder,
+  getJsapiParams,
   handlePaymentSuccess,
   verifyAndHandleNotification
 }

@@ -37,6 +37,21 @@ router.post('/orders', handle(async (ctx) => {
   return success(result)
 }))
 
+/**
+ * 获取 JSAPI 支付参数（用于 H5 页面）
+ * GET /api/v1/member/jsapi-params?orderId=xxx&openid=xxx
+ */
+router.get('/jsapi-params', handle(async (ctx) => {
+  const { orderId, openid } = ctx.query
+  
+  if (!orderId || !openid) {
+    return ctx.throw(400, '参数不完整')
+  }
+  
+  const result = await memberService.getJsapiParams(orderId, openid)
+  return success(result)
+}))
+
 
 
 /**

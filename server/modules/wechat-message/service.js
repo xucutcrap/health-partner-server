@@ -59,34 +59,24 @@ async function handleMessage(message) {
             const token = await getAccessToken()
             // await sendTextMessage(token, FromUserName, '正在为您生成支付码，请稍候...')
 
-            // 4. 创建订单并获取链接
-            const codeUrl = await memberService.createNativeOrder(user.id, productId)
+            // 4. 创建订单
+            const order = await database.queryOne(
+                'INSERT INTO member_orders (user_id, order_no, product_id, product_name, amount, status) VALUES (?, ?, ?, ?, ?, ?)',
+                [user.id, `M${Date.now()}${user.id.toString().padStart(6, '0')}`, productId, 
+                 productId === 'month' ? '月度会员' : productId === 'quarter' ? '季度会员' : '年度会员',
+                 productId === 'month' ? 0.1 : productId === 'quarter' ? 29.9 : 49.9,
+                 'pending']
+            )
+            const orderId = order.insertId || (await database.queryOne('SELECT LAST_INSERT_ID() as id')).id
             
-            // 5. 生成二维码图片流
-            const qrPng = qr.image(codeUrl, { type: 'png', margin: 1 })
+            // 5. 生成支付链接
+            const paymentUrl = `https://whpuedison.online/pay.html?orderId=${orderId}&openid=${FromUserName}`
             
-            // 6. 保存为临时文件以便上传
-            const tempFilePath = path.join(__dirname, `../../../../static/temp_qr_${Date.now()}.png`)
-            const tempDir = path.dirname(tempFilePath)
-            
-            // 确保目录存在
-            if (!fs.existsSync(tempDir)) {
-                fs.mkdirSync(tempDir, { recursive: true })
-            }
-            
-            const writeStream = fs.createWriteStream(tempFilePath)
-            qrPng.pipe(writeStream)
+            // 6. 发送文字消息（包含支付链接）
+            await sendTextMessage(token, FromUserName, 
+                `您好！请点击下方链接完成支付：\n\n${paymentUrl}\n\n如有问题，请联系客服。`
+            )
 
-            await new Promise((resolve) => writeStream.on('finish', resolve))
-
-            // 7. 上传临时素材
-            const mediaId = await uploadTempMedia(token, tempFilePath)
-            
-            // 8. 发送图片消息
-            await sendImageMessage(token, FromUserName, mediaId)
-
-            // 9. 清理临时文件
-            fs.unlinkSync(tempFilePath)
 
         } catch (err) {
             console.error('Handle Temp Session Error:', err)

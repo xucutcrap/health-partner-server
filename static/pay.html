@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会员支付</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 32px 24px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .header h1 {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .header p {
+            font-size: 14px;
+            color: #999;
+        }
+        .order-info {
+            background: #f7f8fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        .order-item:last-child {
+            margin-bottom: 0;
+        }
+        .order-item .label {
+            color: #666;
+        }
+        .order-item .value {
+            color: #333;
+            font-weight: 500;
+        }
+        .price {
+            text-align: center;
+            margin: 24px 0;
+        }
+        .price-label {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 8px;
+        }
+        .price-value {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .price-value .symbol {
+            font-size: 24px;
+        }
+        .pay-btn {
+            width: 100%;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .pay-btn:active {
+            transform: scale(0.98);
+        }
+        .pay-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .loading {
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+            margin-top: 16px;
+        }
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 16px;
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>番茄控卡会员</h1>
+            <p>确认支付信息</p>
+        </div>
+
+        <div class="order-info" id="orderInfo">
+            <div class="order-item">
+                <span class="label">商品名称</span>
+                <span class="value" id="productName">加载中...</span>
+            </div>
+            <div class="order-item">
+                <span class="label">订单编号</span>
+                <span class="value" id="orderNo">-</span>
+            </div>
+        </div>
+
+        <div class="price">
+            <div class="price-label">支付金额</div>
+            <div class="price-value">
+                <span class="symbol">¥</span><span id="amount">0.00</span>
+            </div>
+        </div>
+
+        <button class="pay-btn" id="payBtn" onclick="pay()">立即支付</button>
+        
+        <div class="loading" id="loading" style="display:none;">正在加载支付信息...</div>
+        <div class="error" id="error" style="display:none;"></div>
+    </div>
+
+    <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
+    <script>
+        // 从 URL 获取参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('orderId');
+        const openid = urlParams.get('openid');
+
+        let paymentParams = null;
+
+        // 页面加载时获取订单信息和支付参数
+        window.onload = async function() {
+            if (!orderId || !openid) {
+                showError('缺少必要参数');
+                return;
+            }
+
+            try {
+                document.getElementById('loading').style.display = 'block';
+                
+                // 获取 JSAPI 支付参数
+                const response = await fetch(`/api/v1/member/jsapi-params?orderId=${orderId}&openid=${openid}`);
+                const result = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+
+                if (!result.success) {
+                    showError(result.message || '获取支付信息失败');
+                    return;
+                }
+
+                const data = result.data;
+                
+                // 显示订单信息
+                document.getElementById('productName').textContent = data.productName;
+                document.getElementById('orderNo').textContent = data.orderNo;
+                document.getElementById('amount').textContent = data.amount.toFixed(2);
+                
+                // 保存支付参数
+                paymentParams = data.paymentParams;
+                
+                // 启用支付按钮
+                document.getElementById('payBtn').disabled = false;
+                
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                showError('网络错误，请稍后重试');
+                console.error('Error:', error);
+            }
+        };
+
+        function pay() {
+            if (!paymentParams) {
+                showError('支付参数未就绪');
+                return;
+            }
+
+            // 调用微信 JSAPI 支付
+            WeixinJSBridge.invoke('getBrandWCPayRequest', paymentParams, function(res) {
+                if (res.err_msg === "get_brand_wcpay_request:ok") {
+                    // 支付成功
+                    alert('支付成功！');
+                    // 跳转回小程序
+                    wx.miniProgram.navigateBack();
+                } else if (res.err_msg === "get_brand_wcpay_request:cancel") {
+                    // 用户取消
+                    showError('支付已取消');
+                } else {
+                    // 支付失败
+                    showError('支付失败：' + res.err_msg);
+                }
+            });
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
