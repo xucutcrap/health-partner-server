@@ -72,9 +72,24 @@ const getRecipeDetail = async (recipeId, openId = null) => {
     }
   }
 
+  // 检查会员状态
+  let isMember = false
+  if (openId) {
+    try {
+      const userService = require('../user/service')
+      const userProfile = await userService.getUserProfile(openId)
+      isMember = userProfile.isMember
+    } catch (error) {
+      console.warn('获取会员状态失败:', error.message)
+    }
+  }
+
   return {
     ...recipe,
     isFavorite,
+    userInfo: {
+      isMember
+    },
     dailyMeals: dailyMeals.map(meal => ({
       id: meal.id,
       dayNumber: meal.dayNumber,
