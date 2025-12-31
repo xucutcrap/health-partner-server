@@ -67,6 +67,13 @@ async function handleMessage(message) {
             
             // 6. 保存为临时文件以便上传
             const tempFilePath = path.join(__dirname, `../../../../static/temp_qr_${Date.now()}.png`)
+            const tempDir = path.dirname(tempFilePath)
+            
+            // 确保目录存在
+            if (!fs.existsSync(tempDir)) {
+                fs.mkdirSync(tempDir, { recursive: true })
+            }
+            
             const writeStream = fs.createWriteStream(tempFilePath)
             qrPng.pipe(writeStream)
 
