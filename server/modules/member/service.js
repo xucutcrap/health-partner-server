@@ -42,36 +42,9 @@ async function createOrder(userId, productId, clientIp) {
     throw BusinessError('用户不存在')
   }
 
-  // 0. 检查是否存在待支付的有效订单
-  const existingOrder = await database.queryOne(
-    'SELECT * FROM member_orders WHERE user_id = ? AND product_id = ? AND status = ? ORDER BY id DESC LIMIT 1',
-    [userId, productId, 'pending']
-  )
-
-  if (existingOrder) {
-    // 检查订单是否在有效期内（例如 1 小时内有效）
-    const orderTime = new Date(existingOrder.created_at).getTime()
-    const now = Date.now()
-    if (now - orderTime < 3600 * 1000) { // 1小时有效期
-      console.log('Found existing pending order:', existingOrder.order_no)
-      
-      let paymentParams = {}
-      if (existingOrder.payment_params) {
-        try {
-          paymentParams = JSON.parse(existingOrder.payment_params)
-        } catch (e) {
-          console.error('Parse payment_params failed:', e)
-        }
-      }
-
-      return {
-        orderId: existingOrder.id,
-        orderNo: existingOrder.order_no,
-        paymentParams
-      }
-    }
-  }
-
+  // 0. 检查是否存在待支付的有效订单 - 移除此逻辑，总是创建新订单以避免卡单
+  // const existingOrder = await database.queryOne(...) 
+  
   // 1. 生成系统订单号
   const orderNo = `M${Date.now()}${userId.toString().padStart(6, '0')}`
 
