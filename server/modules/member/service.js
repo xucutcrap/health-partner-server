@@ -280,7 +280,12 @@ async function verifyAndHandleNotification(headers, body) {
     const signature = headers['wechatpay-signature']
     const serial = headers['wechatpay-serial']
     
-    console.log('📋 回调签名信息:', { timestamp, nonce, serial, signature: signature?.substring(0, 20) + '...' })
+    console.log('📋 回调签名信息:', { 
+      timestamp, 
+      nonce, 
+      serial, 
+      signature: signature?.substring(0, 20) + '...' 
+    })
     
     if (!timestamp || !nonce || !signature || !serial) {
       console.error('❌ 缺少必要的签名头信息')
@@ -289,13 +294,32 @@ async function verifyAndHandleNotification(headers, body) {
     
     // 2. 验证签名
     console.log('🔐 开始签名验证...')
-    const isValid = await pay.verifySign({
-      timestamp,
-      nonce,
-      body,
-      serial,
-      signature
-    })
+    console.log('提示: 首次验证时会自动从微信服务器拉取平台证书')
+    
+    let isValid = false
+    try {
+      isValid = await pay.verifySign({
+        timestamp,
+        nonce,
+        body,
+        serial,
+        signature
+      })
+    } catch (verifyErr) {
+      console.error('❌ 签名验证过程出错:', verifyErr.message)
+      console.error('错误堆栈:', verifyErr.stack)
+      
+      // 如果是证书拉取失败,提供详细的解决方案
+      if (verifyErr.message.includes('拉取平台证书失败')) {
+        console.error('💡 解决方案:')
+        console.error('1. 检查服务器网络是否能访问微信支付API (https://api.mch.weixin.qq.com)')
+        console.error('2. 检查防火墙/安全组是否允许出站HTTPS请求')
+        console.error('3. 检查 config.wechat.mchId 和 config.wechat.apiV3Key 是否配置正确')
+        console.error('4. 或者使用微信官方工具手动下载平台证书')
+      }
+      
+      throw verifyErr
+    }
     
     if (!isValid) {
       console.error('❌ 签名验证失败')
@@ -310,8 +334,16 @@ async function verifyAndHandleNotification(headers, body) {
     
     if (!resource) {
       console.error('❌ 回调数据中缺少 resource 字段')
+      console.log('完整 body:', JSON.stringify(body, null, 2))
       throw BusinessError('回调数据格式错误')
     }
+    
+    console.log('Resource 字段:', {
+      algorithm: resource.algorithm,
+      has_ciphertext: !!resource.ciphertext,
+      has_nonce: !!resource.nonce,
+      has_associated_data: !!resource.associated_data
+    })
     
     const decryptedData = pay.decipher_gcm(
       resource.ciphertext,
@@ -337,9 +369,10 @@ async function verifyAndHandleNotification(headers, body) {
       console.warn('⚠️ 支付状态不是 SUCCESS:', decryptedData.trade_state)
     }
   } catch (err) {
-    console.error('❌ 微信回调验证失败:', err.message)
+    console.error('❌ 微信回调处理失败:', err.message)
     console.error('错误详情:', err)
-    throw BusinessError('签名验证失败')
+    console.error('错误堆栈:', err.stack)
+    throw BusinessError('回调处理失败: ' + err.message)
   }
   return false
 }
