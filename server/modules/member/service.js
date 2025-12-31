@@ -138,6 +138,67 @@ async function createOrder(userId, productId, clientIp) {
 }
 
 /**
+ * 创建 Native 支付订单 (返回二维码链接)
+ */
+async function createNativeOrder(userId, productId) {
+  const product = PRODUCTS.find(p => p.id === productId)
+  if (!product) {
+    throw BusinessError('无效的商品ID')
+  }
+
+  const user = await database.queryOne('SELECT * FROM users WHERE id = ?', [userId])
+  if (!user) {
+    throw BusinessError('用户不存在')
+  }
+
+  // 1. 生成系统订单号
+  const orderNo = `M${Date.now()}${userId.toString().padStart(6, '0')}`
+
+  // 2. 创建本地订单 (Pending)
+  const orderData = {
+    user_id: userId,
+    order_no: orderNo,
+    product_id: productId,
+    product_name: product.name,
+    amount: product.price,
+    status: 'pending'
+  }
+  const result = await orderDb.create(orderData)
+
+  if (!pay) {
+    throw BusinessError('支付未配置')
+  }
+
+  try {
+      // 3. 调用 Native 支付接口
+      const res = await pay.transactions_native({
+        description: `番茄控卡-${product.name}`,
+        out_trade_no: orderNo,
+        notify_url: config.wechat.notifyUrl,
+        amount: {
+          total: Math.round(product.price * 100)
+        }
+      })
+      
+      console.log('WeChat Native Order Response:', res)
+
+      if (res.status === 200 && res.code_url) {
+          // 保存参数以防万一
+          await database.query(
+            'UPDATE member_orders SET payment_params = ? WHERE id = ?',
+            [JSON.stringify({ code_url: res.code_url }), result.insertId]
+          )
+          return res.code_url
+      } else {
+        throw new Error('WeChat Native Pay Error: ' + JSON.stringify(res))
+      }
+  } catch(e) {
+      console.error('Native Order Failed:', e)
+      throw BusinessError('获取支付链接失败')
+  }
+}
+
+/**
  * 支付回调处理 (或主动查询处理)
  * @param {string} orderNo 订单号
  * @param {string} transactionId 微信支付流水号
@@ -213,6 +274,7 @@ async function verifyAndHandleNotification(headers, body) {
 module.exports = {
   getProducts,
   createOrder,
+  createNativeOrder,
   handlePaymentSuccess,
   verifyAndHandleNotification
 }

@@ -23,6 +23,8 @@ const feedbackRouter = require('../modules/feedback/router')
 const recipeRouter = require('../modules/recipe/router')
 // 引入会员模块路由
 const memberRouter = require('../modules/member/router')
+// 引入微信消息模块路由
+const wechatMessageRouter = require('../modules/wechat-message/router')
 
 /**
  * 图片上传接口
@@ -52,6 +54,7 @@ router.use('/api/v1/measurement', measurementRouter.routes(), measurementRouter.
 router.use('/api/v1/feedback', feedbackRouter.routes(), feedbackRouter.allowedMethods())
 router.use('/api/v1/recipe', recipeRouter.routes(), recipeRouter.allowedMethods())
 router.use('/api/v1/member', memberRouter.routes(), memberRouter.allowedMethods())
+router.use('/api/v1/wechat/message', wechatMessageRouter.routes(), wechatMessageRouter.allowedMethods())
 
 // 健康检查接口
 router.get('/health', async (ctx) => {
