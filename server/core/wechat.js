@@ -10,8 +10,6 @@ const WechatPay = require('wechatpay-node-v3')
 let pay = null
 
 try {
-    console.log('WechatPay:', WechatPay)
-    console.log('config:', config?.wechat)
   if (WechatPay && config.wechat && config.wechat.mchId) {
     pay = new WechatPay({
       appid: config.wechat.appId,
