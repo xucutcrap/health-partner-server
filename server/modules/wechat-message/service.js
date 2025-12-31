@@ -60,14 +60,15 @@ async function handleMessage(message) {
             // await sendTextMessage(token, FromUserName, '正在为您生成支付码，请稍候...')
 
             // 4. 创建订单
-            const order = await database.queryOne(
+            const orderNo = `M${Date.now()}${user.id.toString().padStart(6, '0')}`
+            const productName = productId === 'month' ? '月度会员' : productId === 'quarter' ? '季度会员' : '年度会员'
+            const amount = productId === 'month' ? 0.1 : productId === 'quarter' ? 29.9 : 49.9
+            
+            const result = await database.query(
                 'INSERT INTO member_orders (user_id, order_no, product_id, product_name, amount, status) VALUES (?, ?, ?, ?, ?, ?)',
-                [user.id, `M${Date.now()}${user.id.toString().padStart(6, '0')}`, productId, 
-                 productId === 'month' ? '月度会员' : productId === 'quarter' ? '季度会员' : '年度会员',
-                 productId === 'month' ? 0.1 : productId === 'quarter' ? 29.9 : 49.9,
-                 'pending']
+                [user.id, orderNo, productId, productName, amount, 'pending']
             )
-            const orderId = order.insertId || (await database.queryOne('SELECT LAST_INSERT_ID() as id')).id
+            const orderId = result.insertId
             
             // 5. 生成支付链接
             const paymentUrl = `https://whpuedison.online/pay.html?orderId=${orderId}&openid=${FromUserName}`
