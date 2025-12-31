@@ -273,16 +273,59 @@ async function verifyAndHandleNotification(headers, body) {
 
   console.log('✅ 微信支付实例已初始化')
   
-  // wechatpay-node-v3 verify_notification 需要传入 headers 和 body
-  // body 应该是 JSON 对象
   try {
-    console.log('🔐 开始签名验证...')
-    const result = await pay.verify_notification(headers, body)
-    console.log('✅ 签名验证成功')
-    console.log('验证结果:', JSON.stringify(result, null, 2))
+    // 1. 从 headers 中获取签名相关信息
+    const timestamp = headers['wechatpay-timestamp']
+    const nonce = headers['wechatpay-nonce']
+    const signature = headers['wechatpay-signature']
+    const serial = headers['wechatpay-serial']
     
-    if (result.status === 'success') {
-      const { out_trade_no, transaction_id } = result.resource
+    console.log('📋 回调签名信息:', { timestamp, nonce, serial, signature: signature?.substring(0, 20) + '...' })
+    
+    if (!timestamp || !nonce || !signature || !serial) {
+      console.error('❌ 缺少必要的签名头信息')
+      throw BusinessError('缺少签名信息')
+    }
+    
+    // 2. 验证签名
+    console.log('🔐 开始签名验证...')
+    const isValid = await pay.verifySign({
+      timestamp,
+      nonce,
+      body,
+      serial,
+      signature
+    })
+    
+    if (!isValid) {
+      console.error('❌ 签名验证失败')
+      throw BusinessError('签名验证失败')
+    }
+    
+    console.log('✅ 签名验证成功')
+    
+    // 3. 解密回调数据
+    console.log('🔓 开始解密回调数据...')
+    const { resource } = body
+    
+    if (!resource) {
+      console.error('❌ 回调数据中缺少 resource 字段')
+      throw BusinessError('回调数据格式错误')
+    }
+    
+    const decryptedData = pay.decipher_gcm(
+      resource.ciphertext,
+      resource.associated_data,
+      resource.nonce,
+      config.wechat.apiV3Key
+    )
+    
+    console.log('✅ 数据解密成功')
+    console.log('解密后的数据:', JSON.stringify(decryptedData, null, 2))
+    
+    // 4. 处理支付成功
+    if (decryptedData.trade_state === 'SUCCESS') {
+      const { out_trade_no, transaction_id } = decryptedData
       console.log(`📦 订单号: ${out_trade_no}, 微信流水号: ${transaction_id}`)
       console.log('🔄 开始处理支付成功逻辑...')
       
@@ -291,7 +334,7 @@ async function verifyAndHandleNotification(headers, body) {
       console.log('✅ 支付成功处理完成')
       return true
     } else {
-      console.warn('⚠️ 支付状态不是 success:', result.status)
+      console.warn('⚠️ 支付状态不是 SUCCESS:', decryptedData.trade_state)
     }
   } catch (err) {
     console.error('❌ 微信回调验证失败:', err.message)
