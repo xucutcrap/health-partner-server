@@ -204,44 +204,58 @@ async function createNativeOrder(userId, productId) {
  * @param {string} transactionId 微信支付流水号
  */
 async function handlePaymentSuccess(orderNo, transactionId) {
+  console.log(`🔍 查询订单: ${orderNo}`)
   const order = await database.queryOne('SELECT * FROM member_orders WHERE order_no = ?', [orderNo])
   if (!order) {
+    console.error(`❌ 订单不存在: ${orderNo}`)
     throw BusinessError('订单不存在')
   }
 
+  console.log(`📋 订单状态: ${order.status}`)
   if (order.status === 'success') {
+    console.log('⚠️ 订单已处理过,跳过')
     return true // 已经处理过
   }
 
   // 1. 更新订单状态
+  console.log('💾 更新订单状态为 success...')
   await database.query(
     'UPDATE member_orders SET status = ?, transaction_id = ?, paid_at = NOW() WHERE id = ?', 
     ['success', transactionId, order.id]
   )
+  console.log('✅ 订单状态已更新')
 
   // 2. 更新用户会员时间
   const product = PRODUCTS.find(p => p.id === order.product_id)
   if (!product) {
-     console.error('Product not found for order:', order)
+     console.error('❌ 商品不存在:', order.product_id)
      return
   }
 
+  console.log(`📦 商品信息: ${product.name}, 天数: ${product.duration_days}`)
+  
   const user = await database.queryOne('SELECT * FROM users WHERE id = ?', [order.user_id])
+  console.log(`👤 用户 ID: ${user.id}, 当前会员到期时间: ${user.member_expire_at}`)
+  
   let newExpireAt;
   const now = new Date()
   
-  // 如果用户当前也是会员且未过期，则在原基础顺延
+  // 如果用户当前也是会员且未过期,则在原基础顺延
   if (user.member_expire_at && new Date(user.member_expire_at) > now) {
     newExpireAt = new Date(user.member_expire_at)
+    console.log('📅 在原会员基础上顺延')
   } else {
     newExpireAt = new Date(now)
+    console.log('📅 从现在开始计算')
   }
   
   // 增加天数
   newExpireAt.setDate(newExpireAt.getDate() + product.duration_days)
+  console.log(`📅 新的会员到期时间: ${newExpireAt.toISOString()}`)
   
   // 更新到 users 表
   await database.query('UPDATE users SET member_expire_at = ? WHERE id = ?', [newExpireAt, user.id])
+  console.log('✅ 用户会员时间已更新')
   
   return true
 }
@@ -250,22 +264,38 @@ async function handlePaymentSuccess(orderNo, transactionId) {
  * 验证并处理微信支付回调
  */
 async function verifyAndHandleNotification(headers, body) {
+  console.log('📝 开始验证微信支付回调')
+  
   if (!pay) {
+    console.error('❌ 微信支付未初始化')
     throw BusinessError('微信支付未初始化')
   }
 
+  console.log('✅ 微信支付实例已初始化')
+  
   // wechatpay-node-v3 verify_notification 需要传入 headers 和 body
   // body 应该是 JSON 对象
   try {
+    console.log('🔐 开始签名验证...')
     const result = await pay.verify_notification(headers, body)
+    console.log('✅ 签名验证成功')
+    console.log('验证结果:', JSON.stringify(result, null, 2))
     
     if (result.status === 'success') {
       const { out_trade_no, transaction_id } = result.resource
+      console.log(`📦 订单号: ${out_trade_no}, 微信流水号: ${transaction_id}`)
+      console.log('🔄 开始处理支付成功逻辑...')
+      
       await handlePaymentSuccess(out_trade_no, transaction_id)
+      
+      console.log('✅ 支付成功处理完成')
       return true
+    } else {
+      console.warn('⚠️ 支付状态不是 success:', result.status)
     }
   } catch (err) {
-    console.error('WeChat Notification Verify Failed:', err)
+    console.error('❌ 微信回调验证失败:', err.message)
+    console.error('错误详情:', err)
     throw BusinessError('签名验证失败')
   }
   return false
