@@ -9,48 +9,54 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #FFF8F6 0%, #FFF0EB 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            color: #333;
         }
         .container {
-            background: white;
-            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
             padding: 32px 24px;
-            max-width: 400px;
+            max-width: 375px;
             width: 100%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 40px rgba(233, 80, 63, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.8);
         }
         .header {
             text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 30px;
         }
         .header h1 {
-            font-size: 24px;
-            color: #333;
+            font-size: 22px;
+            color: #1a1a1a;
             margin-bottom: 8px;
+            font-weight: 600;
         }
         .header p {
-            font-size: 14px;
-            color: #999;
+            font-size: 13px;
+            color: #888;
         }
         .order-info {
-            background: #f7f8fa;
+            background: #FFF5F2;
             border-radius: 12px;
             padding: 20px;
-            margin-bottom: 24px;
+            margin-bottom: 30px;
         }
         .order-item {
             display: flex;
             justify-content: space-between;
             margin-bottom: 12px;
             font-size: 14px;
+            line-height: 1.5;
         }
         .order-item:last-child {
             margin-bottom: 0;
@@ -64,72 +70,104 @@
         }
         .price {
             text-align: center;
-            margin: 24px 0;
+            margin-bottom: 30px;
         }
         .price-label {
-            font-size: 14px;
+            font-size: 13px;
             color: #999;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
         .price-value {
-            font-size: 48px;
-            font-weight: bold;
-            color: #667eea;
+            font-size: 40px;
+            font-weight: 700;
+            color: #E9503F;
+            font-family: DINAlternate-Bold, -apple-system, sans-serif;
         }
         .price-value .symbol {
             font-size: 24px;
+            margin-right: 2px;
         }
         .pay-btn {
             width: 100%;
-            height: 50px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 48px;
+            background: linear-gradient(135deg, #E9503F 0%, #D92F20 100%);
             color: white;
             border: none;
-            border-radius: 25px;
+            border-radius: 24px;
             font-size: 16px;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 16px rgba(233, 80, 63, 0.25);
         }
         .pay-btn:active {
             transform: scale(0.98);
         }
         .pay-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        .loading {
-            text-align: center;
+            background: #E5E5E5;
             color: #999;
-            font-size: 14px;
-            margin-top: 16px;
+            cursor: not-allowed;
+            box-shadow: none;
         }
-        .error {
-            background: #fee;
-            color: #c33;
-            padding: 12px;
+        /* 支付成功状态 */
+        .pay-btn.success {
+            background: #07C160;
+            box-shadow: 0 6px 16px rgba(7, 193, 96, 0.25);
+            pointer-events: none;
+        }
+        .error-msg {
+            background: #FFF2F0;
+            color: #FF4D4F;
+            padding: 10px;
             border-radius: 8px;
             margin-top: 16px;
-            font-size: 14px;
+            font-size: 13px;
             text-align: center;
+            display: none;
+            border: 1px solid rgba(255, 77, 79, 0.1);
+        }
+        .loading-mask {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            backdrop-filter: blur(2px);
+            display: none;
+        }
+        .loading-content {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
+    <div class="loading-mask" id="pageLoading">
+        <div class="loading-content">正在加载订单...</div>
+    </div>
+
     <div class="container">
         <div class="header">
             <h1>番茄控卡会员</h1>
-            <p>确认支付信息</p>
+            <p>订单信息</p>
         </div>
 
-        <div class="order-info" id="orderInfo">
+        <div class="order-info">
             <div class="order-item">
                 <span class="label">商品名称</span>
-                <span class="value" id="productName">加载中...</span>
+                <span class="value" id="productName">...</span>
             </div>
             <div class="order-item">
                 <span class="label">订单编号</span>
-                <span class="value" id="orderNo">-</span>
+                <span class="value" id="orderNo">...</span>
             </div>
         </div>
 
@@ -140,89 +178,99 @@
             </div>
         </div>
 
-        <button class="pay-btn" id="payBtn" onclick="pay()">立即支付</button>
-        
-        <div class="loading" id="loading" style="display:none;">正在加载支付信息...</div>
-        <div class="error" id="error" style="display:none;"></div>
+        <button class="pay-btn" id="payBtn" onclick="pay()" disabled>立即支付</button>
+        <div class="error-msg" id="errorMsg"></div>
     </div>
 
     <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
     <script>
-        // 从 URL 获取参数
         const urlParams = new URLSearchParams(window.location.search);
         const orderId = urlParams.get('orderId');
         const openid = urlParams.get('openid');
 
         let paymentParams = null;
+        const payBtn = document.getElementById('payBtn');
+        const errorMsg = document.getElementById('errorMsg');
 
-        // 页面加载时获取订单信息和支付参数
+        // 显示/隐藏 错误信息
+        function showError(msg) {
+            if (msg) {
+                errorMsg.textContent = msg;
+                errorMsg.style.display = 'block';
+            } else {
+                errorMsg.style.display = 'none';
+            }
+        }
+
         window.onload = async function() {
             if (!orderId || !openid) {
-                showError('缺少必要参数');
+                showError('参数错误：缺少订单信息');
                 return;
             }
 
+            document.getElementById('pageLoading').style.display = 'flex';
+
             try {
-                document.getElementById('loading').style.display = 'block';
-                
-                // 获取 JSAPI 支付参数
                 const response = await fetch(`/api/v1/member/jsapi-params?orderId=${orderId}&openid=${openid}`);
                 const result = await response.json();
                 
-                document.getElementById('loading').style.display = 'none';
+                document.getElementById('pageLoading').style.display = 'none';
 
                 if (!result.success) {
-                    showError(result.message || '获取支付信息失败');
+                    showError(result.message || '获取支付参数失败');
                     return;
                 }
 
                 const data = result.data;
-                
-                // 显示订单信息
                 document.getElementById('productName').textContent = data.productName;
                 document.getElementById('orderNo').textContent = data.orderNo;
                 document.getElementById('amount').textContent = data.amount.toFixed(2);
                 
-                // 保存支付参数
                 paymentParams = data.paymentParams;
-                
-                // 启用支付按钮
-                document.getElementById('payBtn').disabled = false;
+                payBtn.disabled = false;
                 
             } catch (error) {
-                document.getElementById('loading').style.display = 'none';
-                showError('网络错误，请稍后重试');
-                console.error('Error:', error);
+                document.getElementById('pageLoading').style.display = 'none';
+                showError('网络请求失败，请刷新重试');
             }
         };
 
         function pay() {
-            if (!paymentParams) {
-                showError('支付参数未就绪');
+            if (!paymentParams) return;
+
+            // 1. 改变按钮状态
+            payBtn.disabled = true;
+            payBtn.textContent = '支付中...';
+            showError(''); // 清除旧错误
+
+            if (typeof WeixinJSBridge === 'undefined') {
+                payBtn.disabled = false;
+                payBtn.textContent = '立即支付';
+                showError('请在微信内打开此页面');
                 return;
             }
 
-            // 调用微信 JSAPI 支付
             WeixinJSBridge.invoke('getBrandWCPayRequest', paymentParams, function(res) {
                 if (res.err_msg === "get_brand_wcpay_request:ok") {
-                    // 支付成功
-                    alert('支付成功！');
-                    // 跳转回小程序
-                    wx.miniProgram.navigateBack();
+                    // 2. 支付成功状态
+                    payBtn.className = 'pay-btn success';
+                    payBtn.textContent = '✅ 支付成功';
+                    
+                    // 延迟返回，让用户看到成功状态
+                    setTimeout(() => {
+                        wx.miniProgram.navigateBack();
+                    }, 1500);
                 } else if (res.err_msg === "get_brand_wcpay_request:cancel") {
-                    // 用户取消
-                    showError('支付已取消');
+                    // 3. 用户取消
+                    payBtn.disabled = false;
+                    payBtn.textContent = '立即支付';
                 } else {
-                    // 支付失败
-                    showError('支付失败：' + res.err_msg);
+                    // 4. 支付失败
+                    payBtn.disabled = false;
+                    payBtn.textContent = '重新支付';
+                    showError('支付失败，请重试');
                 }
             });
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('error');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
         }
     </script>
 </body>
