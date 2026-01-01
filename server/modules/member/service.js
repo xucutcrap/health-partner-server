@@ -11,7 +11,7 @@ const orderDb = database.createDbOperations('member_orders')
 
 // 商品列表配置
 const PRODUCTS = [
-  { id: 'month', name: '月度会员', price: 0.1, duration_days: 31, original_price: 19.9 },
+  { id: 'month', name: '月度会员', price: 19.9, duration_days: 31, original_price: 19.9 },
   { id: 'quarter', name: '季度会员', price: 29.9, duration_days: 92, original_price: 59.9 },
   { id: 'year', name: '年度会员', price: 49.9, duration_days: 366, original_price: 199.9, recommend: true }
 ]
