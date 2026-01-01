@@ -31,31 +31,11 @@ try {
       notifyUrl: config.wechat.notifyUrl
     }
     
-    // 根据证书内容判断是公钥模式还是平台证书模式
+    // 3. 尝试加载平台证书 (如果存在)
+    // 证书下载脚本: npm run download-cert
     if (wechatPayPublicKey) {
-      const certContent = wechatPayPublicKey.toString()
-      
-      // 判断是否为公钥格式 (BEGIN PUBLIC KEY)
-      if (certContent.includes('BEGIN PUBLIC KEY')) {
-        // 公钥模式
-        console.log('📌 使用微信支付公钥模式')
-        initConfig.wxPayPublicKey = wechatPayPublicKey
-        
-        // 设置公钥ID (从config读取或使用默认值)
-        if (config.wechat.wxPayPublicId) {
-          initConfig.wxPayPublicId = config.wechat.wxPayPublicId
-          console.log(`   公钥ID: ${config.wechat.wxPayPublicId}`)
-        } else {
-          console.warn('⚠️  未配置 wxPayPublicId，请在 config.js 中添加')
-        }
-      } else if (certContent.includes('BEGIN CERTIFICATE')) {
-        // 平台证书模式
-        console.log('📌 使用平台证书模式')
-        initConfig.platformCert = wechatPayPublicKey
-      } else {
-        console.warn('⚠️  证书格式无法识别，尝试作为平台证书使用')
-        initConfig.platformCert = wechatPayPublicKey
-      }
+       console.log('📌 加载平台证书')
+       initConfig.platformCert = wechatPayPublicKey
     }
     
     pay = new WechatPay(initConfig)

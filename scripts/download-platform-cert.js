@@ -132,19 +132,24 @@ function decryptCertificate(ciphertext, associatedData, nonce) {
   try {
     const apiV3Key = config.wechat.apiV3Key
     
-    // AES-256-GCM 解密
+    // 1. 将 Base64 密文转为 Buffer
+    const ciphertextBuffer = Buffer.from(ciphertext, 'base64')
+    
+    // 2. 提取 Auth Tag (最后16字节) 和 真正密文
+    const authTag = ciphertextBuffer.slice(ciphertextBuffer.length - 16)
+    const encryptedData = ciphertextBuffer.slice(0, ciphertextBuffer.length - 16)
+    
+    // 3. AES-256-GCM 解密
     const decipher = crypto.createDecipheriv(
       'aes-256-gcm',
       Buffer.from(apiV3Key, 'utf8'),
       Buffer.from(nonce, 'utf8')
     )
     
-    decipher.setAuthTag(Buffer.from(ciphertext.slice(-16 * 2), 'hex'))
+    decipher.setAuthTag(authTag)
     decipher.setAAD(Buffer.from(associatedData, 'utf8'))
     
-    const ciphertextBuffer = Buffer.from(ciphertext.slice(0, -16 * 2), 'base64')
-    let decrypted = decipher.update(ciphertextBuffer)
-    decrypted = Buffer.concat([decrypted, decipher.final()])
+    const decrypted = Buffer.concat([decipher.update(encryptedData), decipher.final()])
     
     return decrypted.toString('utf8')
   } catch (err) {
