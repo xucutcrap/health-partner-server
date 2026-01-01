@@ -13,13 +13,40 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
-            background: #fff;
+            background: linear-gradient(135deg, #f8f4f0 0%, #faf6f2 50%, #f5f0eb 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
             color: #F1E0AD;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* 装饰性背景元素 */
+        body::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            left: -50px;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(241, 224, 173, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        
+        body::after {
+            content: '';
+            position: absolute;
+            bottom: -75px;
+            right: -75px;
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.06) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
         }
         .container {
             background: linear-gradient(135deg, #222 0%, #333 100%);
