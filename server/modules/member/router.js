@@ -52,6 +52,21 @@ router.get('/jsapi-params', handle(async (ctx) => {
   return success(result)
 }))
 
+/**
+ * 查询订单状态（用于前端轮询）
+ * GET /api/v1/member/order-status?orderId=xxx
+ */
+router.get('/order-status', handle(async (ctx) => {
+  const { orderId } = ctx.query
+  
+  if (!orderId) {
+    return ctx.throw(400, '缺少订单ID')
+  }
+  
+  const result = await memberService.getOrderStatus(orderId)
+  return success(result)
+}))
+
 
 
 /**

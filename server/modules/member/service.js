@@ -11,9 +11,9 @@ const orderDb = database.createDbOperations('member_orders')
 
 // 商品列表配置
 const PRODUCTS = [
-  { id: 'month', name: '月度会员', price: 0.1, duration_days: 30, original_price: 19.9 },
-  { id: 'quarter', name: '季度会员', price: 29.9, duration_days: 90, original_price: 59.9 },
-  { id: 'year', name: '年度会员', price: 49.9, duration_days: 365, original_price: 199.9, recommend: true }
+  { id: 'month', name: '月度会员', price: 0.1, duration_days: 31, original_price: 19.9 },
+  { id: 'quarter', name: '季度会员', price: 29.9, duration_days: 92, original_price: 59.9 },
+  { id: 'year', name: '年度会员', price: 49.9, duration_days: 366, original_price: 199.9, recommend: true }
 ]
 
 /**
@@ -205,7 +205,7 @@ async function createNativeOrder(userId, productId) {
  * @param {string} orderNo 订单号
  * @param {string} transactionId 微信支付流水号
  */
-async function handlePaymentSuccess(orderNo, transactionId) {
+async function handlePaymentSuccess(orderNo, transactionId, paidAmount = null) {
   console.log(`🔍 查询订单: ${orderNo}`)
   const order = await database.queryOne('SELECT * FROM member_orders WHERE order_no = ?', [orderNo])
   if (!order) {
@@ -213,18 +213,34 @@ async function handlePaymentSuccess(orderNo, transactionId) {
     throw BusinessError('订单不存在')
   }
 
-  console.log(`📋 订单状态: ${order.status}`)
+  console.log(`📋 订单状态: ${order.status}, 订单金额: ¥${order.amount}`)
+  
+  // 金额校验（如果回调提供了金额）
+  if (paidAmount !== null) {
+    const expectedAmount = Math.round(order.amount * 100) // 转为分
+    if (paidAmount !== expectedAmount) {
+      console.error(`❌ 支付金额不匹配! 预期: ${expectedAmount}分, 实际: ${paidAmount}分`)
+      throw BusinessError('支付金额不匹配')
+    }
+    console.log(`✅ 金额校验通过: ${paidAmount}分`)
+  }
+  
   if (order.status === 'success') {
     console.log('⚠️ 订单已处理过,跳过')
     return true // 已经处理过
   }
 
-  // 1. 更新订单状态
+  // 1. 更新订单状态（使用乐观锁保证幂等性）
   console.log('💾 更新订单状态为 success...')
-  await database.query(
-    'UPDATE member_orders SET status = ?, transaction_id = ?, paid_at = NOW() WHERE id = ?', 
-    ['success', transactionId, order.id]
+  const updateResult = await database.query(
+    'UPDATE member_orders SET status = ?, transaction_id = ?, paid_at = NOW() WHERE id = ? AND status = ?', 
+    ['success', transactionId, order.id, 'pending']
   )
+  
+  if (updateResult.affectedRows === 0) {
+    console.log('⚠️ 订单状态未更新（可能已被其他请求处理），跳过后续逻辑')
+    return true
+  }
   console.log('✅ 订单状态已更新')
 
   // 2. 更新用户会员时间
@@ -259,6 +275,22 @@ async function handlePaymentSuccess(orderNo, transactionId) {
   await database.query('UPDATE users SET member_expire_at = ? WHERE id = ?', [newExpireAt, user.id])
   console.log('✅ 用户会员时间已更新')
   
+  // 3. 详细日志记录
+  console.log('📊 支付成功详情:', JSON.stringify({
+    orderId: order.id,
+    orderNo: order.order_no,
+    userId: order.user_id,
+    productId: order.product_id,
+    productName: product.name,
+    amount: order.amount,
+    transactionId: transactionId,
+    paidAmount: paidAmount ? `${paidAmount}分` : 'N/A',
+    oldExpireAt: user.member_expire_at,
+    newExpireAt: newExpireAt.toISOString(),
+    timestamp: new Date().toISOString()
+  }, null, 2))
+  
+  console.log('🎉 支付处理完成')
   return true
 }
 
@@ -347,11 +379,11 @@ async function verifyAndHandleNotification(headers, body) {
     
     // 4. 处理支付成功
     if (decryptedData.trade_state === 'SUCCESS') {
-      const { out_trade_no, transaction_id } = decryptedData
-      console.log(`📦 订单号: ${out_trade_no}, 微信流水号: ${transaction_id}`)
+      const { out_trade_no, transaction_id, amount } = decryptedData
+      console.log(`📦 订单号: ${out_trade_no}, 微信流水号: ${transaction_id}, 支付金额: ${amount?.total}分`)
       console.log('🔄 开始处理支付成功逻辑...')
       
-      await handlePaymentSuccess(out_trade_no, transaction_id)
+      await handlePaymentSuccess(out_trade_no, transaction_id, amount?.total)
       
       console.log('✅ 支付成功处理完成')
       return true
@@ -449,11 +481,31 @@ async function getJsapiParams(orderId, openid) {
   }
 }
 
+/**
+ * 查询订单状态（用于前端轮询）
+ */
+async function getOrderStatus(orderId) {
+  const order = await database.queryOne('SELECT * FROM member_orders WHERE id = ?', [orderId])
+  
+  if (!order) {
+    throw BusinessError('订单不存在')
+  }
+  
+  return {
+    status: order.status,
+    orderId: order.id,
+    orderNo: order.order_no,
+    createdAt: order.created_at,
+    paidAt: order.paid_at
+  }
+}
+
 module.exports = {
   getProducts,
   createOrder,
   createNativeOrder,
   getJsapiParams,
+  getOrderStatus,
   handlePaymentSuccess,
   verifyAndHandleNotification
 }
