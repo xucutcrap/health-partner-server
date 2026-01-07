@@ -8,6 +8,8 @@ const errors = require('./errors')
 const database = require('./database')
 const utils = require('./utils')
 const middleware = require('./middleware')
+const wechat = require('./wechat')
+const wxApi = require('./wx-api')
 
 module.exports = {
   response,
@@ -15,5 +17,7 @@ module.exports = {
   errors,
   database,
   utils,
-  Middleware: middleware
+  Middleware: middleware,
+  wechat,
+  wxApi
 }

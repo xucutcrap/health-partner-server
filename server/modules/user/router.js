@@ -16,7 +16,12 @@ router.post('/login', handle(async (ctx) => {
   if (!code) {
     return ctx.throw(400, 'code 不能为空')
   }
-  const result = await userService.getOpenIdByCode(code)
+
+  // 获取真实IP (兼容反向代理)
+  const clientIp = ctx.request.headers['x-real-ip'] || 
+                   ctx.request.headers['x-forwarded-for'] || 
+                   ctx.ip;
+  const result = await userService.getOpenIdByCode(code, clientIp)
   return success(result)
 }))
 
@@ -440,6 +445,30 @@ router.get('/share/status', handle(async (ctx) => {
     return ctx.throw(400, 'openId 不能为空')
   }
   const result = await userService.getUserShareStatus(openId)
+  return success(result)
+}))
+
+/**
+ * 记录用户行为 (全链路风控)
+ * POST /api/v1/user/behavior
+ */
+router.post('/behavior', handle(async (ctx) => {
+  const { openId, actionType, timestamp, signature } = ctx.request.body
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  
+  // 获取真实IP
+  const clientIp = ctx.request.headers['x-real-ip'] || 
+                   ctx.request.headers['x-forwarded-for'] || 
+                   ctx.ip
+  
+  const result = await userService.recordBehavior(openId, {
+    actionType,
+    timestamp,
+    signature
+  }, clientIp)
+  
   return success(result)
 }))
 

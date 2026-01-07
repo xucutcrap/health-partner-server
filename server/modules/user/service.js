@@ -19,7 +19,7 @@ const { BusinessError } = errors
 /**
  * 小程序：根据 code 获取 openId，并返回所有用户信息（包括健康档案）
  */
-async function getOpenIdByCode(code) {
+async function getOpenIdByCode(code, clientIp) {
   try {
     const url = `https://api.weixin.qq.com/sns/jscode2session`
     const params = {
@@ -40,8 +40,23 @@ async function getOpenIdByCode(code) {
       throw BusinessError('未获取到 openId')
     }
     
+    // IP 防刷检查 (仅针对新用户或更新)
+    // 严格模式：同一IP最多注册10个账号
+    if (clientIp) {
+         // 先检查该用户是否已存在，如果已存在则是登录，不卡IP
+         const existUser = await userModel.findByOpenId(openid)
+         if (!existUser) {
+             const ipCount = await userModel.countByIp(clientIp)
+             if (ipCount >= 10) {
+                 console.warn(`⚠️ IP ${clientIp} 注册频繁，已拦截`)
+                 throw BusinessError('当前网络环境注册频繁，请稍后重试')
+             }
+         }
+    }
+    
     // 创建或更新用户（如果不存在则创建）
-    const user = await userModel.createOrUpdateByOpenId(openid)
+    // 传入 IP
+    const user = await userModel.createOrUpdateByOpenId(openid, { registerIp: clientIp })
     
     // 健康档案信息现在直接在 user 对象上 (字段已合并)
     
@@ -54,7 +69,8 @@ async function getOpenIdByCode(code) {
       // 健康档案信息: 只要有身高，就算有档案
       profile: !!user.height,
       memberExpireAt: user.member_expire_at || null,
-      isMember: user.member_expire_at && new Date(user.member_expire_at) > new Date()
+      isMember: user.member_expire_at && new Date(user.member_expire_at) > new Date(),
+      isPartner: !!user.is_partner // 返回合伙人身份
     }
   } catch (error) {
     if (error.name === 'BusinessError') {
@@ -147,7 +163,8 @@ async function getUserProfile(openId) {
     age: user.age || null,
     gender: user.gender || '男',
     memberExpireAt: user.member_expire_at || null,
-    isMember: user.member_expire_at && new Date(user.member_expire_at) > new Date()
+    isMember: user.member_expire_at && new Date(user.member_expire_at) > new Date(),
+    isPartner: !!user.is_partner // 返回合伙人身份
   }
 }
 
@@ -757,6 +774,48 @@ async function getUserShareStatus(openId) {
     }
 }
 
+/**
+ * 记录用户关键行为 (全链路风控)
+ * Payload必须带签名防篡改
+ */
+const crypto = require('crypto')
+const { SECURITY_SALT } = require('../../../config')
+
+
+async function recordBehavior(openId, payload, clientIp) {
+    const { actionType, timestamp, signature } = payload
+    
+    if (!openId || !actionType) {
+        throw BusinessError('参数不完整')
+    }
+
+    // 1. 防重放: 检查时间戳 (5分钟内有效)
+    const now = Date.now()
+    if (!timestamp || Math.abs(now - timestamp) > 5 * 60 * 1000) {
+         throw BusinessError('请求已过期')
+    }
+
+    // 2. 防篡改: 校验签名
+    // 签名规则: sha256(actionType + timestamp + SALT)
+    const rawString = `${actionType}${timestamp}${SECURITY_SALT}`
+    const expectedSignature = crypto.createHash('sha256').update(rawString).digest('hex')
+    
+    if (signature !== expectedSignature) {
+        console.warn(`⚠️ 签名校验失败! User: ${openId}, IP: ${clientIp}`)
+        throw BusinessError('安全校验失败')
+    }
+
+    const user = await userModel.findByOpenId(openId)
+    if (!user) {
+        throw BusinessError('用户不存在')
+    }
+
+    // 3. 记录日志
+    await userModel.createBehavior(user.id, actionType, clientIp)
+    
+    return true
+}
+
 module.exports = {
   getOpenIdByCode,
   getUserInfoByOpenId,
@@ -778,5 +837,6 @@ module.exports = {
   addDietRecord,
   deleteDietRecord,
   recordShare,
-  getUserShareStatus
+  getUserShareStatus,
+  recordBehavior
 }

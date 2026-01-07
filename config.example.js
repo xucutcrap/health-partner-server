@@ -11,7 +11,10 @@ const config = {
   wechat: {
     appId: 'your-wechat-appid',
     appSecret: 'your-wechat-appsecret'
-  }
+  },
+  // 安全配置：用于行为记录签名验证（必须与小程序端保持一致）
+  SECURITY_SALT: 'your-custom-security-salt-change-me'
+
 }
 
 module.exports = config

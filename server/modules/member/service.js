@@ -275,6 +275,54 @@ async function handlePaymentSuccess(orderNo, transactionId, paidAmount = null) {
   await database.query('UPDATE users SET member_expire_at = ? WHERE id = ?', [newExpireAt, user.id])
   console.log('✅ 用户会员时间已更新')
   
+  // ---------------------------------------------------------
+  // [NEW] 此处处理合伙人提成逻辑 (10元佣金)
+  // ---------------------------------------------------------
+  try {
+      // 1. 查找此用户是否有上级合伙人
+      const shareModel = require('../partner/share-model') // 借用 partner 模块的方法
+      // 如果没有专门的方法查 referral，直接查表
+      // share_referrals: id, share_id, referred_user_id
+      // user_shares: id, user_id (promoter)
+      
+      const referralSql = `
+        SELECT us.user_id as promoterId 
+        FROM share_referrals sr
+        JOIN user_shares us ON sr.share_id = us.id
+        WHERE sr.referred_user_id = ?
+        LIMIT 1
+      `
+      const referral = await database.queryOne(referralSql, [order.user_id])
+      
+      if (referral && referral.promoterId) {
+          const promoterId = referral.promoterId
+          console.log(`💰 发现上级推广员 ID: ${promoterId}, 准备发放佣金...`)
+          
+          // 2. 发放 10 元佣金
+          // 检查是否已发过（防止重复回调导致重复发钱）-> 简单检查 order_id
+          const existingCommission = await database.queryOne(
+              'SELECT id FROM partner_earnings WHERE order_id = ? AND type = ?', 
+              [order.id, 'commission_sale']
+          )
+          
+          if (!existingCommission) {
+              const commissionAmount = 10.00
+              await database.query(
+                  `INSERT INTO partner_earnings (promoter_id, amount, type, source_user_id, order_id) 
+                   VALUES (?, ?, ?, ?, ?)`,
+                  [promoterId, commissionAmount, 'commission_sale', order.user_id, order.id]
+              )
+              console.log(`🎉 佣金发放成功! Promoter: ${promoterId}, Amount: 10.00`)
+          } else {
+              console.log('⚠️ 佣金已发放过，跳过')
+          }
+      }
+  } catch (err) {
+      console.error('❌ 佣金发放失败:', err)
+      // 佣金失败不单纯影响订单状态，记录错误即可
+  }
+  // ---------------------------------------------------------
+  
   // 3. 详细日志记录
   console.log('📊 支付成功详情:', JSON.stringify({
     orderId: order.id,

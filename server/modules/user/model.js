@@ -75,6 +75,7 @@ async function createOrUpdateByOpenId(openId, userData = {}) {
       weight: userData.weight || null,
       age: userData.age || null,
       gender: userData.gender || null,
+      register_ip: userData.registerIp || null, // 记录注册IP
       member_expire_at: null
     };
     await userDb.create(insertData);
@@ -82,7 +83,30 @@ async function createOrUpdateByOpenId(openId, userData = {}) {
   }
 }
 
+/**
+ * 统计某IP注册的用户数
+ */
+async function countByIp(ip) {
+    if (!ip) return 0
+    const sql = 'SELECT COUNT(*) as count FROM users WHERE register_ip = ?'
+    const result = await userDb.queryOne(sql, [ip])
+    return result ? result.count : 0
+}
+
+/**
+ * 记录用户行为 (用于全链路风控)
+ */
+async function createBehavior(userId, actionType, ip) {
+    const sql = `
+        INSERT INTO user_behaviors (user_id, action_type, ip_address)
+        VALUES (?, ?, ?)
+    `
+    return await userDb.query(sql, [userId, actionType, ip])
+}
+
 module.exports = {
   findByOpenId,
-  createOrUpdateByOpenId
+  createOrUpdateByOpenId,
+  countByIp,
+  createBehavior
 }
