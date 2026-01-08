@@ -80,8 +80,8 @@ async function generatePoster(openId) {
     }
 
     // 2. 调用微信接口生成
-    // scene参数: p=userId (p代表promoter)
-    const scene = `p=${user.id}`
+    // scene参数: p=openid (p代表promoter)
+    const scene = `p=${openid}`
     const page = 'pages/questionnaire/questionnaire' // 落地页
 
     try {
