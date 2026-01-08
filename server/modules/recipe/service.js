@@ -338,7 +338,18 @@ const checkInByOpenId = async (openId, recipeId, dailyMealId, dayNumber, notes =
     throw new Error('参数不完整')
   }
   
-  const userId = await getUserIdByOpenId(openId)
+  const user = await userModel.findByOpenId(openId)
+  if (!user) {
+    throw new Error('用户不存在')
+  }
+
+  // 检查会员状态
+  const isMember = user.member_expire_at && new Date(user.member_expire_at) > new Date()
+  if (!isMember) {
+    throw new Error('请先解锁食谱')
+  }
+
+  const userId = user.id
   
   // 获取食谱总天数
   const dailyMeals = await recipeModel.getDailyMealsByRecipeId(recipeId)
