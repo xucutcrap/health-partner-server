@@ -280,7 +280,6 @@ async function handlePaymentSuccess(orderNo, transactionId, paidAmount = null) {
   // ---------------------------------------------------------
   try {
       // 1. 查找此用户是否有上级合伙人
-      const shareModel = require('../partner/share-model') // 借用 partner 模块的方法
       // 如果没有专门的方法查 referral，直接查表
       // share_referrals: id, share_id, referred_user_id
       // user_shares: id, user_id (promoter)
