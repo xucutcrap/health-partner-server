@@ -33,5 +33,7 @@ node_modules
 
 server/cert/
 
+simulate_commission.js  
+
 
 
