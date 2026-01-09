@@ -469,7 +469,9 @@ const getRecommendedRecipes = async (limit = 6) => {
       intro,
       pic_url as picUrl,
       promotion,
-      recommend_order as recommendOrder
+      recommend_order as recommendOrder,
+      recommend_text as recommendText,
+      usage_text as usageText
     FROM recipes
     WHERE recommend_order IS NOT NULL
     ORDER BY recommend_order ASC
