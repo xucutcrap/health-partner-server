@@ -70,7 +70,9 @@ async function getOpenIdByCode(code, clientIp) {
       profile: !!user.height,
       memberExpireAt: user.member_expire_at || null,
       isMember: user.member_expire_at && new Date(user.member_expire_at) > new Date(),
-      isPartner: !!user.is_partner // 返回合伙人身份
+      isPartner: !!user.is_partner, // 返回合伙人身份
+      // [NEW] 检查是否跳过过问卷 (查行为记录)
+      hasSkipped: await userModel.hasUserBehavior(user.id, 'q_skip')
     }
   } catch (error) {
     if (error.name === 'BusinessError') {

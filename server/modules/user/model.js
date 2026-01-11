@@ -104,9 +104,25 @@ async function createBehavior(userId, actionType, ip) {
     return await userDb.query(sql, [userId, actionType, ip])
 }
 
+/**
+ * 检查用户是否有特定行为
+ * @param {number} userId 
+ * @param {string} actionType 
+ */
+async function hasUserBehavior(userId, actionType) {
+    const sql = `
+        SELECT 1 FROM user_behaviors 
+        WHERE user_id = ? AND action_type = ? 
+        LIMIT 1
+    `
+    const result = await userDb.queryOne(sql, [userId, actionType])
+    return !!result
+}
+
 module.exports = {
   findByOpenId,
   createOrUpdateByOpenId,
   countByIp,
-  createBehavior
+  createBehavior,
+  hasUserBehavior
 }
