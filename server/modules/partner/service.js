@@ -34,20 +34,27 @@ async function recordVisit(referrerOpenId, page, visitorOpenId, ipAddress) {
             const visitorUser = await userModel.findByOpenId(visitorOpenId)
             
             if (visitorUser && visitorUser.id !== promoter.id) {
-                const shareModel = require('../user/share-model')
-                
-                // 1. 查找或补录分享记录
-                let shareId = await shareModel.getLatestShareIdByUserId(promoter.id)
-                if (!shareId) {
-                     const newShare = await shareModel.createShareRecord(promoter.id, 1, 'system_auto_visit')
-                     shareId = newShare.id
-                }
-                
-                // 2. 尝试创建绑定 (createReferralRecord 内部有排重逻辑，若已绑定则返回 null)
-                const bindResult = await shareModel.createReferralRecord(shareId, visitorUser.id, 'visit_link')
-                
-                if (bindResult) {
-                    console.log(`🔗 [Visit Attri] 成功建立分销关系: Promoter=${promoter.id} -> User=${visitorUser.id}`)
+                // [FIX] 漏洞修复: 增加新一户判断 (仅5分钟内注册的用户可归因)
+                // 防止老用户(自然流量)被后续点击链接"抢走"
+                const registerTime = new Date(visitorUser.created_at).getTime()
+                const isNewUser = (Date.now() - registerTime) < 5 * 60 * 1000
+
+                if (isNewUser) {
+                    const shareModel = require('../user/share-model')
+                    
+                    // 1. 查找或补录分享记录
+                    let shareId = await shareModel.getLatestShareIdByUserId(promoter.id)
+                    if (!shareId) {
+                        const newShare = await shareModel.createShareRecord(promoter.id, 1, 'system_auto_visit')
+                        shareId = newShare.id
+                    }
+                    
+                    // 2. 尝试创建绑定
+                    const bindResult = await shareModel.createReferralRecord(shareId, visitorUser.id, 'visit_link')
+                    
+                    if (bindResult) {
+                        console.log(`🔗 [Visit Attri] 成功建立分销关系: Promoter=${promoter.id} -> User=${visitorUser.id}`)
+                    }
                 }
             }
         } catch (err) {

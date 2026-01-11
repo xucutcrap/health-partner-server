@@ -209,7 +209,12 @@ async function updateUserProfile(openId, profileData, referrerId = null, channel
       if (referrerId && referrerId !== openId) {
         // 有推荐人的情况：用户分享
         const referrerUser = await userModel.findByOpenId(referrerId)
-        if (referrerUser) {
+        
+        // [FIX] 漏洞修复: 增加新一户判断 (仅5分钟内注册的用户可归因)
+        const registerTime = new Date(user.created_at).getTime()
+        const isNewUser = (Date.now() - registerTime) < 5 * 60 * 1000
+
+        if (referrerUser && referrerUser.id !== user.id && isNewUser) {
            // 查找最近的分享记录作为归因
            let shareId = await shareModel.getLatestShareIdByUserId(referrerUser.id)
            // 如果找不到分享记录,创建一个系统补录的分享记录
@@ -219,12 +224,19 @@ async function updateUserProfile(openId, profileData, referrerId = null, channel
            }
            
            // 创建推荐记录,传入渠道参数
+           // 注意：createReferralRecord 内部有排重逻辑，如果 Visit 阶段已绑定，这里不会重复插入
            await shareModel.createReferralRecord(shareId, user.id, channel)
         }
       } else if (!referrerId && channel) {
         // 只有渠道没有推荐人的情况：官方渠道推广
-        // shareId 为 null 表示官方渠道，无具体分享人
-        await shareModel.createReferralRecord(null, user.id, channel)
+        // 同样增加新用户判断
+        const registerTime = new Date(user.created_at).getTime()
+        const isNewUser = (Date.now() - registerTime) < 24 * 60 * 60 * 1000
+        
+        if (isNewUser) {
+           // shareId 为 null 表示官方渠道，无具体分享人
+           await shareModel.createReferralRecord(null, user.id, channel)
+        }
       }
     } catch (err) {
       console.error('Process referral error:', err)
