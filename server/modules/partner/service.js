@@ -26,6 +26,35 @@ async function recordVisit(referrerOpenId, page, visitorOpenId, ipAddress) {
         return // 不是合伙人，不记录访问
     }
     
+    // [NEW] 尝试建立分销绑定关系 (归因前置)
+    // 只要访问者(visitorUser)之前没有上级，且不是自己访问自己，就绑定
+    // 不再限制注册时间(24h)，实现"首次点击归因"
+    if (visitorOpenId) {
+        try {
+            const visitorUser = await userModel.findByOpenId(visitorOpenId)
+            
+            if (visitorUser && visitorUser.id !== promoter.id) {
+                const shareModel = require('../user/share-model')
+                
+                // 1. 查找或补录分享记录
+                let shareId = await shareModel.getLatestShareIdByUserId(promoter.id)
+                if (!shareId) {
+                     const newShare = await shareModel.createShareRecord(promoter.id, 1, 'system_auto_visit')
+                     shareId = newShare.id
+                }
+                
+                // 2. 尝试创建绑定 (createReferralRecord 内部有排重逻辑，若已绑定则返回 null)
+                const bindResult = await shareModel.createReferralRecord(shareId, visitorUser.id, 'visit_link')
+                
+                if (bindResult) {
+                    console.log(`🔗 [Visit Attri] 成功建立分销关系: Promoter=${promoter.id} -> User=${visitorUser.id}`)
+                }
+            }
+        } catch (err) {
+            console.error('Visit attribution failed:', err)
+        }
+    }
+    
     await partnerModel.recordVisit(promoter.id, page, visitorOpenId, ipAddress)
 }
 
