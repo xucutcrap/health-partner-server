@@ -1,0 +1,51 @@
+# 依赖
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 环境变量和配置
+.env
+config.js
+
+# 敏感文件 - 微信支付证书
+server/cert/
+
+# 日志文件
+*.log
+logs/
+server.log
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+.cache/
+
+# 输出文件
+# 输出文件
+static/output/
+static/images/
+static/files/
+static/posters/
+
+# Docker相关
+docker/
+docker-compose*.yml
+.dockerignore
+
+# 脚本
+scripts/

@@ -37,3 +37,7 @@ simulate_commission.js
 
 
 
+
+# 本地Docker构建脚本 (含私有Registry信息，务必忽略)
+scripts/
+

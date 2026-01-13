@@ -1,0 +1,78 @@
+services:
+  # Node.js应用服务
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: health-partner-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
+    env_file:
+      - ../.env
+    volumes:
+      # 挂载代码: 本地开发用相对路径，线上可覆盖为绝对路径
+      - ${SERVER_PATH:-../server}:/app/server
+      - ${SCRIPTS_PATH:-../scripts}:/app/scripts
+      # 挂载静态文件 (图片等持久化数据)
+      - ${STATIC_PATH:-../static}:/app/static
+      # 挂载证书 (敏感文件)
+      - ${CERT_PATH:-../server/cert}:/app/server/cert
+      # node_modules使用容器内的
+      - /app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - health-partner-network
+    restart: unless-stopped
+
+  # MySQL数据库服务
+  db:
+    image: mysql:8.0
+    container_name: health-partner-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-health_partner_2024}
+      MYSQL_DATABASE: ${DB_NAME:-health_partner}
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    ports:
+      - "3307:3306"  # 映射到3307避免与本地MySQL冲突
+    volumes:
+      # 数据持久化: 默认使用具名卷，生产环境通过DB_DATA_PATH改为绝对路径
+      - ${DB_DATA_PATH:-mysql_data}:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-health_partner_2024}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - health-partner-network
+    restart: unless-stopped
+
+  # Nginx反向代理 (模拟线上环境)
+  nginx:
+    image: nginx:alpine
+    container_name: health-partner-nginx
+    ports:
+      # 本地默认8080，线上可覆盖为其他端口 (避免与宿主机80冲突)
+      - "${NGINX_PORT:-8080}:80"
+    volumes:
+      # Nginx 配置文件: 本地用 default.conf，线上可通过变量切换为 nginx.ssl.conf
+      - ${NGINX_CONF_PATH:-./nginx/default.conf}:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - health-partner-network
+    restart: unless-stopped
+
+networks:
+  health-partner-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
