@@ -1,5 +1,5 @@
-# 使用Node.js 16官方镜像
-FROM node:16-alpine
+# 使用Node.js 16官方镜像 (阿里云镜像加速)
+FROM registry.cn-hangzhou.aliyuncs.com/library/node:16-alpine
 
 # 设置工作目录
 WORKDIR /app
