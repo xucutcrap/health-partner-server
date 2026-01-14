@@ -51,7 +51,7 @@ router.post('/upload-avatar', handle(async (ctx) => {
   }
   
   // 返回完整的访问 URL（需要根据实际部署情况配置）
-  const config = require('../../config')
+  const config = require('../../../config')
   // 如果配置了 domain (如 https://whpuedison.online/docker)，则优先使用
   // 否则尝试从 request 动态获取
   let baseUrl = config.domain
