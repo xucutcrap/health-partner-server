@@ -51,10 +51,18 @@ router.post('/upload-avatar', handle(async (ctx) => {
   }
   
   // 返回完整的访问 URL（需要根据实际部署情况配置）
-  // 如果使用反向代理，需要检查 X-Forwarded-Proto 来获取真实的协议
-  const forwardedProto = ctx.request.get('X-Forwarded-Proto')
-  const protocol = forwardedProto || ctx.request.protocol || 'https'
-  const baseUrl = protocol + '://' + ctx.request.host
+  const config = require('../../config')
+  // 如果配置了 domain (如 https://whpuedison.online/docker)，则优先使用
+  // 否则尝试从 request 动态获取
+  let baseUrl = config.domain
+  
+  if (!baseUrl) {
+    // 如果使用反向代理，需要检查 X-Forwarded-Proto 来获取真实的协议
+    const forwardedProto = ctx.request.get('X-Forwarded-Proto')
+    const protocol = forwardedProto || ctx.request.protocol || 'https'
+    baseUrl = protocol + '://' + ctx.request.host
+  }
+  
   const avatarUrl = baseUrl + uploadResult.data.url
   
   return success({
