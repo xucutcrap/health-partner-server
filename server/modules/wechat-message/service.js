@@ -62,7 +62,7 @@ async function handleMessage(message) {
             // 4. 创建订单
             const orderNo = `M${Date.now()}${user.id.toString().padStart(6, '0')}`
             const productName = productId === 'month' ? '月度会员' : productId === 'quarter' ? '季度会员' : '年度会员'
-            const amount = productId === 'month' ? 19.9 : productId === 'quarter' ? 29.9 : 49.9
+            const amount = productId === 'month' ? config.pricing.month : productId === 'quarter' ? config.pricing.quarter : config.pricing.year
             
             const result = await database.query(
                 'INSERT INTO member_orders (user_id, order_no, product_id, product_name, amount, status) VALUES (?, ?, ?, ?, ?, ?)',
@@ -71,7 +71,8 @@ async function handleMessage(message) {
             const orderId = result.insertId
             
             // 5. 生成支付链接
-            const paymentUrl = `https://whpuedison.online/pay.html?orderId=${orderId}&openid=${FromUserName}`
+            const domain = config.domain || 'https://whpuedison.online'
+            const paymentUrl = `${domain}/pay.html?orderId=${orderId}&openid=${FromUserName}`
             
             // 6. 发送文字消息（包含支付链接）
             await sendTextMessage(token, FromUserName, 

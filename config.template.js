@@ -43,6 +43,11 @@ const config = {
     model: process.env.DOUBAO_MODEL
   },
   domain: process.env.DOMAIN,
+  pricing: {
+    month: Number(process.env.PRICE_MONTH),
+    quarter: Number(process.env.PRICE_QUARTER),
+    year: Number(process.env.PRICE_YEAR)
+  },
   SECURITY_SALT: process.env.SECURITY_SALT
 }
 
