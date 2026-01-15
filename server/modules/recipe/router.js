@@ -170,6 +170,20 @@ router.post('/check-in', handle(async (ctx) => {
 }))
 
 /**
+ * 取消打卡
+ * DELETE /api/v1/recipe/check-in
+ * Body: { openId, recipeId, dayNumber }
+ */
+router.delete('/check-in', handle(async (ctx) => {
+  const { openId, recipeId, dayNumber } = ctx.query
+  if (!openId) {
+    return ctx.throw(400, 'openId 不能为空')
+  }
+  const result = await recipeService.cancelCheckInByOpenId(openId, recipeId, dayNumber)
+  return success(result)
+}))
+
+/**
  * 重置打卡记录
  * POST /api/v1/recipe/check-in/reset
  * Body: { openId, recipeId }

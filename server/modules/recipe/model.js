@@ -480,6 +480,56 @@ const getRecommendedRecipes = async (limit = 6) => {
   return await query(sql, [limit])
 }
 
+
+/**
+ * 删除用户在某个食谱的某一天打卡记录
+ */
+const deleteCheckIn = async (userId, recipeId, dayNumber) => {
+  // 1. 删除打卡记录
+  const sql = `
+    DELETE FROM recipe_check_ins
+    WHERE user_id = ? AND recipe_id = ? AND day_number = ?
+  `
+  await query(sql, [userId, recipeId, dayNumber])
+  
+  // 2. 重新计算统计信息
+  // 获取当前已打卡天数
+  const checkInCountSql = `
+    SELECT COUNT(*) as count, MAX(day_number) as maxDay
+    FROM recipe_check_ins
+    WHERE user_id = ? AND recipe_id = ?
+  `
+  const stats = await queryOne(checkInCountSql, [userId, recipeId])
+  const checkedDays = stats?.count || 0
+  const lastCheckedDay = stats?.maxDay || 0
+  
+  // 3. 获取总天数
+  const totalDaysSql = `
+    SELECT total_days 
+    FROM recipe_check_in_stats
+    WHERE user_id = ? AND recipe_id = ?
+  `
+  const totalDaysResult = await queryOne(totalDaysSql, [userId, recipeId])
+  const totalDays = totalDaysResult?.total_days || 0
+  
+  const isCompleted = (totalDays > 0 && checkedDays === totalDays) ? 1 : 0
+  
+  // 4. 更新统计表
+  const updateStatsSql = `
+    UPDATE recipe_check_in_stats
+    SET 
+      checked_days = ?,
+      last_checked_day = ?,
+      is_completed = ?,
+      completion_date = ${isCompleted ? 'CURDATE()' : 'NULL'},
+      updated_at = CURRENT_TIMESTAMP
+    WHERE user_id = ? AND recipe_id = ?
+  `
+  await query(updateStatsSql, [checkedDays, lastCheckedDay, isCompleted, userId, recipeId])
+  
+  return { success: true }
+}
+
 module.exports = {
   getAllGroups,
   getRecipesByGroupId,
@@ -502,6 +552,7 @@ module.exports = {
   createCheckIn,
   upsertCheckInStats,
   deleteCheckInRecords,
+  deleteCheckIn, // 新增
   getRecommendedRecipes
 }
 

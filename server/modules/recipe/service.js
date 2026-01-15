@@ -304,14 +304,9 @@ const getCheckInProgressByOpenId = async (openId, recipeId) => {
     dayCheckStatus[i] = checkedDaysSet.has(i)
   }
   
-  // 计算下一个应该打卡的天数
-  let nextDay = totalDays + 1 // 默认为已完成状态
-  for (let i = 1; i <= totalDays; i++) {
-    if (!dayCheckStatus[i]) {
-      nextDay = i
-      break
-    }
-  }
+  // 计算下一个应该打卡的天数 (改为基于最大已打卡天数 + 1)
+  const maxDayCalculated = history.length > 0 ? Math.max(...history.map(h => h.dayNumber)) : 0
+  let nextDay = maxDayCalculated + 1
   
   return {
     recipeId: parseInt(recipeId),
@@ -365,22 +360,26 @@ const checkInByOpenId = async (openId, recipeId, dailyMealId, dayNumber, notes =
     throw new Error('该周期已打卡，不能重复打卡')
   }
   
-  // 检查是否按顺序打卡（不能跳过）
-  const maxCheckedDay = await recipeModel.getMaxCheckedDay(userId, recipeId)
-  if (dayNumber > maxCheckedDay + 1) {
-    throw new Error(`请先完成第${maxCheckedDay + 1}天的打卡`)
+  // 检查是否按顺序打卡（已移除，允许跨天打卡）
+  /*
+  const maxCheckedDayResult = await recipeModel.getMaxCheckedDay(userId, recipeId)
+  if (dayNumber > maxCheckedDayResult + 1) {
+    throw new Error(`请先完成第${maxCheckedDayResult + 1}天的打卡`)
   }
+  */
   
   // 执行打卡
   await recipeModel.createCheckIn(userId, recipeId, dailyMealId, dayNumber, notes)
   
-  // 获取当前已打卡天数
+  // 获取当前已打卡天数和最大天数
   const history = await recipeModel.getCheckInHistory(userId, recipeId)
   const checkedDays = history.length
+  // 重新计算最大已打卡天数
+  const currentMaxDay = Math.max(...history.map(h => h.dayNumber), 0)
   const isCompleted = checkedDays === totalDays
   
   // 更新统计
-  await recipeModel.upsertCheckInStats(userId, recipeId, totalDays, checkedDays, dayNumber, isCompleted ? 1 : 0)
+  await recipeModel.upsertCheckInStats(userId, recipeId, totalDays, checkedDays, currentMaxDay, isCompleted ? 1 : 0)
   
   // 计算完成率
   const completionRate = parseFloat(((checkedDays / totalDays) * 100).toFixed(0))
@@ -445,6 +444,21 @@ const getRecommendedRecipes = async () => {
   return await recipeModel.getRecommendedRecipes(6)
 }
 
+/**
+ * 通过openId取消打卡
+ */
+const cancelCheckInByOpenId = async (openId, recipeId, dayNumber) => {
+  if (!openId || !recipeId || !dayNumber) {
+    throw new Error('openId, recipeId, dayNumber 不能为空')
+  }
+  
+  const userId = await getUserIdByOpenId(openId)
+  
+  await recipeModel.deleteCheckIn(userId, recipeId, dayNumber)
+  
+  return { success: true }
+}
+
 module.exports = {
   getAllGroups,
   getRecipesByGroupId,
@@ -459,6 +473,7 @@ module.exports = {
   // 打卡相关
   getCheckInProgressByOpenId,
   checkInByOpenId,
+  cancelCheckInByOpenId, // 新增
   resetCheckInByOpenId,
   getCheckInHistoryByOpenId,
   getRecommendedRecipes
