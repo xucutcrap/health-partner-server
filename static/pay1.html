@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会员支付</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+            background: #FFFBF7;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #450A0A; /* Dark Brown Text */
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* 装饰性背景元素 - Tuned to Tomato Red theme */
+        body::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            left: -50px;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(233, 80, 63, 0.05) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        
+        body::after {
+            content: '';
+            position: absolute;
+            bottom: -75px;
+            right: -75px;
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, rgba(233, 80, 63, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .container {
+            background: #FFFFFF; /* White Card */
+            border-radius: 20px;
+            padding: 32px 24px;
+            max-width: 375px;
+            width: 100%;
+            box-shadow: 0 16px 48px rgba(69, 10, 10, 0.06); /* Soft warm shadow */
+            border: 1px solid rgba(233, 80, 63, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 22px;
+            color: #450A0A;
+            margin-bottom: 8px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .header p {
+            font-size: 13px;
+            color: #78350F;
+            opacity: 0.6;
+        }
+        .order-info {
+            background: #FFFAF5; /* Very light cream */
+            border: 1px solid rgba(233, 80, 63, 0.06);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .order-item:last-child {
+            margin-bottom: 0;
+        }
+        .order-item .label {
+            color: #78350F;
+            opacity: 0.7;
+        }
+        .order-item .value {
+            color: #450A0A;
+            font-weight: 600;
+        }
+        .price {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .price-label {
+            font-size: 13px;
+            color: #78350F;
+            margin-bottom: 4px;
+            opacity: 0.7;
+        }
+        .price-value {
+            font-size: 40px;
+            font-weight: 800;
+            color: #E9503F; /* Tomato Red */
+            font-family: DINAlternate-Bold, -apple-system, sans-serif;
+            letter-spacing: -1px;
+        }
+        .price-value .symbol {
+            font-size: 24px;
+            margin-right: 2px;
+            font-weight: 700;
+        }
+        .pay-btn {
+            width: 100%;
+            height: 48px;
+            background: linear-gradient(135deg, #E9503F 0%, #D92F20 100%);
+            color: #FFFFFF;
+            border: none;
+            border-radius: 24px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(233, 80, 63, 0.3);
+            letter-spacing: 1px;
+        }
+        .pay-btn:active {
+            transform: scale(0.98);
+            opacity: 0.95;
+        }
+        .pay-btn:disabled {
+            background: #E5E7EB;
+            color: #9CA3AF;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        /* 支付成功状态 */
+        .pay-btn.success {
+            background: linear-gradient(135deg, #E9503F 0%, #D92F20 100%);
+            box-shadow: 0 6px 16px rgba(233, 80, 63, 0.3);
+            pointer-events: none;
+            opacity: 1;
+        }
+        .error-msg {
+            background: #FEF2F2;
+            color: #E9503F;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 16px;
+            font-size: 13px;
+            text-align: center;
+            display: none;
+            border: 1px solid rgba(233, 80, 63, 0.1);
+        }
+        .loading-mask {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 251, 247, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            backdrop-filter: blur(4px);
+            display: none;
+        }
+        .loading-content {
+            background: rgba(255, 255, 255, 0.9);
+            color: #450A0A;
+            padding: 16px 32px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-mask" id="pageLoading">
+        <div class="loading-content">正在加载订单...</div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>番茄控卡会员</h1>
+            <p>订单信息</p>
+        </div>
+
+        <div class="order-info">
+            <div class="order-item">
+                <span class="label">商品名称</span>
+                <span class="value" id="productName">...</span>
+            </div>
+            <div class="order-item">
+                <span class="label">订单编号</span>
+                <span class="value" id="orderNo">...</span>
+            </div>
+        </div>
+
+        <div class="price">
+            <div class="price-label">支付金额</div>
+            <div class="price-value">
+                <span class="symbol">¥</span><span id="amount">0.00</span>
+            </div>
+        </div>
+
+        <button class="pay-btn" id="payBtn" onclick="pay()" disabled>立即支付</button>
+        <div class="error-msg" id="errorMsg"></div>
+    </div>
+
+    <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('orderId');
+        const openid = urlParams.get('openid');
+
+        let paymentParams = null;
+        const payBtn = document.getElementById('payBtn');
+        const errorMsg = document.getElementById('errorMsg');
+
+        // 显示/隐藏 错误信息
+        function showError(msg) {
+            if (msg) {
+                errorMsg.textContent = msg;
+                errorMsg.style.display = 'block';
+            } else {
+                errorMsg.style.display = 'none';
+            }
+        }
+
+        window.onload = async function() {
+            if (!orderId || !openid) {
+                showError('参数错误：缺少订单信息');
+                return;
+            }
+
+            document.getElementById('pageLoading').style.display = 'flex';
+
+            try {
+                const response = await fetch(`/api/v1/member/jsapi-params?orderId=${orderId}&openid=${openid}`);
+                const result = await response.json();
+                
+                document.getElementById('pageLoading').style.display = 'none';
+
+                if (!result.success) {
+                    showError(result.message || '获取支付参数失败');
+                    return;
+                }
+
+                const data = result.data;
+                document.getElementById('productName').textContent = data.productName;
+                document.getElementById('orderNo').textContent = data.orderNo;
+                document.getElementById('amount').textContent = data.amount.toFixed(2);
+                
+                paymentParams = data.paymentParams;
+                payBtn.disabled = false;
+                
+            } catch (error) {
+                document.getElementById('pageLoading').style.display = 'none';
+                showError('网络请求失败，请刷新重试');
+            }
+        };
+
+        function pay() {
+            if (!paymentParams) return;
+
+            // 1. 改变按钮状态
+            payBtn.disabled = true;
+            payBtn.textContent = '支付中...';
+            showError(''); // 清除旧错误
+
+            if (typeof WeixinJSBridge === 'undefined') {
+                payBtn.disabled = false;
+                payBtn.textContent = '立即支付';
+                showError('请在微信内打开此页面');
+                return;
+            }
+
+            WeixinJSBridge.invoke('getBrandWCPayRequest', paymentParams, function(res) {
+                if (res.err_msg === "get_brand_wcpay_request:ok") {
+                    // 2. 支付成功状态
+                    payBtn.textContent = '支付成功';
+                    
+                    // 延迟返回，让用户看到成功状态
+                    setTimeout(() => {
+                        wx.miniProgram.navigateBack();
+                    }, 1500);
+                } else if (res.err_msg === "get_brand_wcpay_request:cancel") {
+                    // 3. 用户取消
+                    payBtn.disabled = false;
+                    payBtn.textContent = '立即支付';
+                } else {
+                    // 4. 支付失败
+                    payBtn.disabled = false;
+                    payBtn.textContent = '重新支付';
+                    showError('支付失败，请重试');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
