@@ -13,18 +13,18 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(135deg, #f8f4f0 0%, #faf6f2 50%, #f5f0eb 100%);
+            background: #FFFBF7;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
-            color: #F1E0AD;
+            color: #450A0A; /* Dark Brown Text */
             position: relative;
             overflow: hidden;
         }
         
-        /* 装饰性背景元素 */
+        /* 装饰性背景元素 - Tuned to Tomato Red theme */
         body::before {
             content: '';
             position: absolute;
@@ -32,7 +32,7 @@
             left: -50px;
             width: 200px;
             height: 200px;
-            background: radial-gradient(circle, rgba(241, 224, 173, 0.08) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(233, 80, 63, 0.05) 0%, transparent 70%);
             border-radius: 50%;
             pointer-events: none;
         }
@@ -44,18 +44,18 @@
             right: -75px;
             width: 250px;
             height: 250px;
-            background: radial-gradient(circle, rgba(212, 175, 55, 0.06) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(233, 80, 63, 0.08) 0%, transparent 70%);
             border-radius: 50%;
             pointer-events: none;
         }
         .container {
-            background: linear-gradient(135deg, #222 0%, #333 100%);
+            background: #FFFFFF; /* White Card */
             border-radius: 20px;
             padding: 32px 24px;
             max-width: 375px;
             width: 100%;
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 16px 48px rgba(69, 10, 10, 0.06); /* Soft warm shadow */
+            border: 1px solid rgba(233, 80, 63, 0.05);
             position: relative;
             overflow: hidden;
         }
@@ -65,18 +65,19 @@
         }
         .header h1 {
             font-size: 22px;
-            color: #F1E0AD;
+            color: #450A0A;
             margin-bottom: 8px;
-            font-weight: 600;
-            letter-spacing: 2px;
+            font-weight: 700;
+            letter-spacing: 1px;
         }
         .header p {
             font-size: 13px;
-            color: rgba(241, 224, 173, 0.6);
+            color: #78350F;
+            opacity: 0.6;
         }
         .order-info {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #FFFAF5; /* Very light cream */
+            border: 1px solid rgba(233, 80, 63, 0.06);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 30px;
@@ -92,11 +93,12 @@
             margin-bottom: 0;
         }
         .order-item .label {
-            color: rgba(241, 224, 173, 0.6);
+            color: #78350F;
+            opacity: 0.7;
         }
         .order-item .value {
-            color: #F1E0AD;
-            font-weight: 500;
+            color: #450A0A;
+            font-weight: 600;
         }
         .price {
             text-align: center;
@@ -104,58 +106,63 @@
         }
         .price-label {
             font-size: 13px;
-            color: rgba(241, 224, 173, 0.6);
+            color: #78350F;
             margin-bottom: 4px;
+            opacity: 0.7;
         }
         .price-value {
             font-size: 40px;
-            font-weight: 700;
-            color: #F1E0AD;
+            font-weight: 800;
+            color: #E9503F; /* Tomato Red */
             font-family: DINAlternate-Bold, -apple-system, sans-serif;
+            letter-spacing: -1px;
         }
         .price-value .symbol {
             font-size: 24px;
             margin-right: 2px;
+            font-weight: 700;
         }
         .pay-btn {
             width: 100%;
             height: 48px;
-            background: linear-gradient(135deg, #F1E0AD 0%, #D4AF37 100%);
-            color: #1a1a1a;
+            background: linear-gradient(135deg, #E9503F 0%, #D92F20 100%);
+            color: #FFFFFF;
             border: none;
             border-radius: 24px;
             font-size: 16px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 6px 16px rgba(241, 224, 173, 0.3);
+            box-shadow: 0 8px 20px rgba(233, 80, 63, 0.3);
+            letter-spacing: 1px;
         }
         .pay-btn:active {
             transform: scale(0.98);
+            opacity: 0.95;
         }
         .pay-btn:disabled {
-            background: rgba(255, 255, 255, 0.1);
-            color: rgba(241, 224, 173, 0.3);
+            background: #E5E7EB;
+            color: #9CA3AF;
             cursor: not-allowed;
             box-shadow: none;
         }
         /* 支付成功状态 */
         .pay-btn.success {
-            background: linear-gradient(135deg, #F1E0AD 0%, #D4AF37 100%);
-            box-shadow: 0 6px 16px rgba(241, 224, 173, 0.3);
+            background: linear-gradient(135deg, #E9503F 0%, #D92F20 100%);
+            box-shadow: 0 6px 16px rgba(233, 80, 63, 0.3);
             pointer-events: none;
-            opacity: 0.9;
+            opacity: 1;
         }
         .error-msg {
-            background: rgba(255, 77, 79, 0.1);
-            color: #FF6B6B;
+            background: #FEF2F2;
+            color: #E9503F;
             padding: 10px;
             border-radius: 8px;
             margin-top: 16px;
             font-size: 13px;
             text-align: center;
             display: none;
-            border: 1px solid rgba(255, 77, 79, 0.2);
+            border: 1px solid rgba(233, 80, 63, 0.1);
         }
         .loading-mask {
             position: fixed;
@@ -163,20 +170,23 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(255, 251, 247, 0.9);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 999;
-            backdrop-filter: blur(2px);
+            backdrop-filter: blur(4px);
             display: none;
         }
         .loading-content {
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 16px 24px;
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #450A0A;
+            padding: 16px 32px;
+            border-radius: 20px;
             font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            border: 1px solid rgba(0,0,0,0.05);
         }
     </style>
 </head>
