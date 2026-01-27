@@ -42,7 +42,9 @@ async function createPost(openId, postData) {
   const postId = await postModel.create({
     userId: user.id,
     content: postData.content.trim(),
-    images: postData.images || []
+    images: postData.images || [],
+    nickname: postData.nickname,
+    avatarUrl: postData.avatarUrl
   })
   
   // 返回完整的帖子信息
@@ -59,60 +61,27 @@ async function getPostList(options = {}) {
   
   const posts = await postModel.findList({
     page,
-    pageSize
+    pageSize,
+    isAdminFilter: true
   })
   
-  // 批量获取点赞信息和评论数量
+  // 获取功能开关（从配置表读取）
+  const commentEnabled = await getCommentEnabled()
+  
+  // 处理帖子列表
   if (posts.length > 0) {
-    const postIds = posts.map(p => p.id)
-    
-    // 批量获取评论数量
-    const commentsCount = await commentModel.getCommentsCount(postIds)
-    console.log('批量获取评论数量:', commentsCount); // 调试日志
-    
-    // 获取功能开关（从配置表读取，隐蔽地混在帖子数据中）
-    const commentEnabled = await getCommentEnabled()
-    
-    // 如果提供了openId，批量获取点赞信息
-    if (openId) {
-      const user = await userModel.findByOpenId(openId)
-      if (user) {
-        const likesInfo = await likeModel.getLikesInfo(postIds, user.id)
-        
-        // 将点赞信息和评论数量附加到每个帖子
-        posts.forEach(post => {
-          const likeInfo = likesInfo[post.id] || { count: 0, isLiked: false }
-          post.likeCount = likeInfo.count
-          post.isLiked = likeInfo.isLiked
-          post.commentCount = commentsCount[post.id] || 0
-          post.powerEnable = commentEnabled // 功能开关，混在帖子数据中
-          console.log(`帖子 ${post.id} 评论数量:`, post.commentCount); // 调试日志
-        })
-      } else {
-        // 如果没有用户信息，只添加评论数量
-        posts.forEach(post => {
-          post.likeCount = 0
-          post.isLiked = false
-          post.commentCount = commentsCount[post.id] || 0
-          post.powerEnable = commentEnabled // 功能开关
-        })
-      }
-    } else {
-      // 如果没有openId，只添加评论数量
-      posts.forEach(post => {
-        post.likeCount = 0
-        post.isLiked = false
-        post.commentCount = commentsCount[post.id] || 0
-        post.powerEnable = commentEnabled // 功能开关
-      })
-    }
-  } else {
-    // 即使没有帖子，也返回开关状态（前端可能需要）
-    const commentEnabled = await getCommentEnabled()
-    // 返回空数组，但可以通过其他方式传递开关（如果需要）
+    // 临时逻辑：仅返回基础信息，补充默认字段防止前端报错
+    posts.forEach(post => {
+      post.likeCount = 0
+      post.isLiked = false
+      post.commentCount = 0
+    })
   }
   
-  return posts
+  return {
+    list: posts,
+    powerEnable: commentEnabled
+  }
 }
 
 /**
@@ -292,4 +261,3 @@ module.exports = {
   deleteComment,
   getPowerEnable: getCommentEnabled
 }
-

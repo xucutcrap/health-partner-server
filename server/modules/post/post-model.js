@@ -12,7 +12,9 @@ const postImageDb = database.createDbOperations('post_images')
 async function create(postData) {
   const insertData = {
     user_id: postData.userId,
-    content: postData.content
+    content: postData.content,
+    nickname: postData.nickname || null,
+    avatar_url: postData.avatarUrl || null
   }
   const result = await postDb.create(insertData)
   const postId = result.insertId || result.id
@@ -39,8 +41,8 @@ async function findById(id) {
     SELECT 
       p.*,
       u.id as user_id,
-      u.nickname,
-      u.avatar_url,
+      COALESCE(p.nickname, u.nickname) as nickname,
+      COALESCE(p.avatar_url, u.avatar_url) as avatar_url,
       GROUP_CONCAT(pi.image_url ORDER BY pi.sort_order SEPARATOR ',') as images
     FROM posts p
     LEFT JOIN users u ON p.user_id = u.id
@@ -70,8 +72,8 @@ async function findList(options = {}) {
     SELECT 
       p.*,
       u.id as user_id,
-      u.nickname,
-      u.avatar_url,
+      COALESCE(p.nickname, u.nickname) as nickname,
+      COALESCE(p.avatar_url, u.avatar_url) as avatar_url,
       GROUP_CONCAT(pi.image_url ORDER BY pi.sort_order SEPARATOR ',') as images
     FROM posts p
     LEFT JOIN users u ON p.user_id = u.id
@@ -84,6 +86,12 @@ async function findList(options = {}) {
   if (userId) {
     sql += ' WHERE p.user_id = ?'
     params.push(userId)
+  }
+  
+  // 如果指定了 isAdminFilter，只查询管理员的帖子
+  if (options.isAdminFilter) {
+    // 只有当没有 WHERE 子句时才加 WHERE，否则加 AND
+    sql += (userId ? ' AND ' : ' WHERE ') + 'u.is_admin = 1'
   }
   
   sql += `

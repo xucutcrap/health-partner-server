@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `age` int(11) DEFAULT NULL COMMENT '年龄',
   `gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT '男' COMMENT '性别：男/女',
   `member_expire_at` datetime DEFAULT NULL COMMENT '会员过期时间',
+  `is_admin` tinyint(1) NOT NULL DEFAULT 0 COMMENT '管理员标识：1-管理员，0-普通用户',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),

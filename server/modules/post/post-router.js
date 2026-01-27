@@ -12,11 +12,11 @@ const { handle, success } = response
  * POST /api/v1/post/create
  */
 router.post('/create', handle(async (ctx) => {
-  const { openId, content, images } = ctx.request.body
+  const { openId, content, images, nickname, avatarUrl } = ctx.request.body
   if (!openId) {
     return ctx.throw(400, 'openId 不能为空')
   }
-  const result = await postService.createPost(openId, { content, images })
+  const result = await postService.createPost(openId, { content, images, nickname, avatarUrl })
   return success(result)
 }))
 
