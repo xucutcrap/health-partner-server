@@ -487,7 +487,7 @@ router.post('/behavior', handle(async (ctx) => {
 router.get('/system-config', handle(async (ctx) => {
   const { database } = require('../../core')
   const row = await database.queryOne(
-    "SELECT config_value FROM system_config WHERE config_key = 'power_enable'"
+    "SELECT config_value FROM system_config WHERE config_key = 'comment_enabled'"
   )
   return success({ powerEnable: row ? parseInt(row.config_value) : 0 })
 }))
