@@ -61,8 +61,19 @@ async function handleMessage(message) {
 
             // 4. 创建订单
             const orderNo = `M${Date.now()}${user.id.toString().padStart(6, '0')}`
-            const productName = productId === 'month' ? '月度会员' : productId === 'quarter' ? '季度会员' : '年度会员'
-            const amount = productId === 'month' ? config.pricing.month : productId === 'quarter' ? config.pricing.quarter : config.pricing.year
+            const PRODUCT_MAP = {
+                month:        { name: '月度会员',         price: config.pricing.month },
+                quarter:      { name: '季度会员',         price: config.pricing.quarter },
+                year:         { name: '年度会员',         price: config.pricing.year },
+                year_special: { name: '年度会员·限时特惠', price: config.pricing.year_special },
+            }
+            const product = PRODUCT_MAP[productId]
+            if (!product) {
+                console.error('Unknown productId:', productId)
+                return
+            }
+            const productName = product.name
+            const amount = product.price
             
             const result = await database.query(
                 'INSERT INTO member_orders (user_id, order_no, product_id, product_name, amount, status) VALUES (?, ?, ?, ?, ?, ?)',
