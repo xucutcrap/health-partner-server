@@ -13,7 +13,17 @@ const orderDb = database.createDbOperations('member_orders')
 const PRODUCTS = [
   { id: 'month', name: '月度会员', price: config.pricing.month, duration_days: 31, original_price: 19.9 },
   { id: 'quarter', name: '季度会员', price: config.pricing.quarter, duration_days: 92, original_price: 59.9 },
-  { id: 'year', name: '年度会员', price: config.pricing.year, duration_days: 366, original_price: 199.9, recommend: true }
+  { id: 'year', name: '年度会员', price: config.pricing.year, duration_days: 366, original_price: 199.9, recommend: true },
+  {
+    id: 'year_special',
+    name: '限时特惠年卡',
+    price: config.pricing.year_special,        
+    duration_days: 366,
+    original_price: 199.9,
+    refund_amount: config.pricing.year_special_refund, 
+    is_special: true,                            // 标记限时特惠
+    checkin_days_required: 30                    // 打卡30天可退款
+  }
 ]
 
 /**
@@ -274,6 +284,26 @@ async function handlePaymentSuccess(orderNo, transactionId, paidAmount = null) {
   // 更新到 users 表
   await database.query('UPDATE users SET member_expire_at = ? WHERE id = ?', [newExpireAt, user.id])
   console.log('✅ 用户会员时间已更新')
+
+  // [限时特惠] 如果是 year_special 套餐，创建打卡承诺记录
+  if (product.id === 'year_special') {
+    try {
+      const existingCommitment = await database.queryOne(
+        'SELECT id FROM checkin_commitments WHERE order_id = ?', [order.id]
+      )
+      if (!existingCommitment) {
+        await database.query(
+          `INSERT INTO checkin_commitments (user_id, order_id, start_date, refund_amount, status)
+           VALUES (?, ?, CURDATE(), ?, 'ongoing')`,
+          [order.user_id, order.id, product.refund_amount]
+        )
+        console.log(`⭐ 已为用户 ${order.user_id} 创建30天打卡承诺，返款 ¥${product.refund_amount}`)
+      }
+    } catch (err) {
+      console.error('❌ 创建打卡承诺失败:', err)
+      // 不影响主流程
+    }
+  }
   
   // ---------------------------------------------------------
   // [NEW] 此处处理合伙人提成逻辑 (10元佣金)
@@ -547,6 +577,206 @@ async function getOrderStatus(orderId) {
   }
 }
 
+/**
+ * 一键打卡（每天只能打一次）
+ * 支持第 30 天打卡即时触发微信原子退款
+ */
+async function dailyCheckin(userId) {
+  // 【全局拦截】: 首先校验会员服务是否在有效期内
+  const user = await database.queryOne('SELECT member_expire_at FROM users WHERE id = ?', [userId])
+  if (!user || !user.member_expire_at || new Date(user.member_expire_at) < new Date()) {
+    return { success: false, message: '当前不在会员有效期内，无法执行打卡。如需继续挑战，请先续费会员。' }
+  }
+
+  let isNewCheckin = false;
+  try {
+    await database.query(
+      `INSERT INTO daily_checkins (user_id, checkin_date) VALUES (?, CURDATE())`,
+      [userId]
+    )
+    isNewCheckin = true;
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      isNewCheckin = false; // 今日已经打过卡，但在 30 天退款场景下这需要当成一次被阻断的请求再次查验一下流水
+    } else {
+      throw err;
+    }
+  }
+
+  // 每次打卡动作（包含重复点击），都重新计算一下最新的连签状态
+  const status = await getCheckinCommitmentStatus(userId);
+
+  // 【核心防击穿退款机制】
+  // 当打卡连签达到甚至超出 30 天，且这笔契约还处在没被退款核销掉的 ongoing 状态
+  if (status.checkedDays >= 30 && status.status === 'ongoing' && !status.streakBroken) {
+    // 1. 本地乐观锁防并发：必须带着 ongoing 的条件去改成 completed
+    const updateRes = await database.query(
+      "UPDATE checkin_commitments SET status = 'completed' WHERE id = ? AND status = 'ongoing'",
+      [status.commitmentId]
+    );
+
+    // 如果 affectedRows 不等于 1，说明别的请求或者上一秒的连点已经把钱退走出完了，直接拦截
+    if (updateRes.affectedRows === 1) {
+      try {
+        const pay = require('../../core/wechat');
+        if (!pay) throw new Error('微信支付实例未就绪');
+
+        // 拉取待退金额、本金和微信原流水号
+        const commitmentInfo = await database.queryOne(
+          'SELECT c.order_id, c.refund_amount, o.transaction_id, o.amount FROM checkin_commitments c JOIN member_orders o ON c.order_id = o.order_no WHERE c.id = ?',
+          [status.commitmentId]
+        );
+
+        if (!commitmentInfo || !commitmentInfo.transaction_id) {
+          throw new Error('未找到微信侧支付流水号，无法原路退回！');
+        }
+
+        // 调用 WeChat V3 退款网关
+        const outRefundNo = `R${commitmentInfo.order_id}_${Date.now()}`;
+        const refundRes = await pay.refunds({
+          transaction_id: commitmentInfo.transaction_id,
+          out_refund_no: outRefundNo,
+          reason: '番茄控卡30天打卡挑战活动达标退还',
+          amount: {
+            refund: Math.round(parseFloat(commitmentInfo.refund_amount) * 100),
+            total: Math.round(parseFloat(commitmentInfo.amount) * 100),
+            currency: 'CNY'
+          }
+        });
+
+        console.log('✅ 30天即时退款网关受理成功:', JSON.stringify(refundRes));
+
+        // 记上退款被受理的时间戳
+        await database.query("UPDATE checkin_commitments SET refunded_at = NOW() WHERE id = ?", [status.commitmentId]);
+        
+        return { 
+          success: true, 
+          message: '🏆 30日打卡挑战通关！返现已发起原路退款，1-3个工作日到账。',
+          isRefunded: true
+        };
+      } catch (apiError) {
+        console.error('❌ 即时退款网关请求失败:', apiError.message || apiError);
+        // 如果钱没发出去（网络不通），必须回滚刚刚改的 completed 状态
+        // 从而允许用户一会儿重新点打卡按钮重试退款
+        await database.query("UPDATE checkin_commitments SET status = 'ongoing' WHERE id = ?", [status.commitmentId]);
+        
+        // 返回前端一个明确的重试提示
+        return { 
+          success: false, 
+          message: '系统退款网络拥堵，打卡已记录，返现还在处理中，请重新点击打卡按钮重试。' 
+        };
+      }
+    }
+  }
+
+  // 如果最新挑战已经完结（成功或失败），则拦截额外的打卡行为
+  if (status.status === 'completed') {
+    return { success: false, message: '当前挑战已成功通关，无需继续打卡' }
+  }
+  if (status.status === 'failed') {
+    // 【新逻辑】: 断签后自动重启挑战 (有效期已在函数顶部由全局逻辑拦截)
+    await database.query(
+      "UPDATE checkin_commitments SET status = 'ongoing', start_date = CURDATE() WHERE id = ?",
+      [status.commitmentId]
+    )
+    return { success: true, message: '已重新开启 30 天返现挑战，从今日起重新累计连续天数！' }
+  }
+
+  if (!isNewCheckin) {
+    return { success: false, message: '今日已完成打卡' }
+  }
+
+  return { success: true, message: '打卡成功' }
+}
+
+/**
+ * 查询用户的打卡承诺进度
+ */
+async function getCheckinCommitmentStatus(userId) {
+  // 返回用户最新的挑战记录（无论 ongoing 还是 completed 还是 failed）
+  // 这样前端能明确知道用户最近的挑战是什么状态
+  const commitment = await database.queryOne(
+    `SELECT * FROM checkin_commitments
+     WHERE user_id = ?
+     ORDER BY created_at DESC LIMIT 1`,
+    [userId]
+  )
+
+  // 今日是否已打卡
+  const todayRow = await database.queryOne(
+    `SELECT id FROM daily_checkins WHERE user_id = ? AND checkin_date = CURDATE()`,
+    [userId]
+  )
+  const todayChecked = !!todayRow
+
+  if (!commitment) {
+    return {
+      checkedDays: 0,
+      remainDays: 30,
+      refundAmount: config.pricing.year_special_refund,
+      todayChecked,
+      status: 'none',
+      streakBroken: false
+    }
+  }
+
+  // 取所有打卡日期跑 MySQL 原生天数差（规避 Node 的 JS Date 与数据库跨时区的漂移 Bug）
+  const allDates = await database.query(
+    `SELECT DATEDIFF(CURDATE(), checkin_date) as diff_days 
+     FROM daily_checkins
+     WHERE user_id = ? AND checkin_date >= ? AND checkin_date <= CURDATE()
+     ORDER BY checkin_date DESC`,
+    [userId, commitment.start_date]
+  )
+
+  let streak = 0
+  let streakBroken = false
+  
+  // 如果今天没打卡，期望第一个签到差一天 (昨天)；如果打了卡，期望差 0 天 (今天)
+  let expectedDiff = todayChecked ? 0 : 1
+
+  for (let i = 0; i < allDates.length; i++) {
+    const diffDays = allDates[i].diff_days
+
+    if (diffDays === expectedDiff) {
+      streak++
+      expectedDiff++
+    } else {
+      streakBroken = streak > 0  // 只要积累了1天以上又发生数字跳表，说明中间断了
+      break
+    }
+  }
+
+  // 如果今天没打卡，且第一条记录差的根本不是1天（也就是说昨天也没打卡），则连续中断
+  if (!todayChecked && streak === 0 && allDates.length > 0) {
+    streakBroken = true
+  }
+
+  // 【懒更新机制】如果已经断签且契约还在 ongoing，直接宣判出局，更新为 failed
+  if (streakBroken && commitment.status === 'ongoing') {
+    await database.query("UPDATE checkin_commitments SET status = 'failed' WHERE id = ?", [commitment.id])
+    commitment.status = 'failed'
+  }
+
+  const remainDays = Math.max(0, 30 - streak)
+
+  return {
+    commitmentId: commitment.id,
+    startDate: commitment.start_date,
+    checkedDays: streak,       // 当前连续天数
+    remainDays,
+    refundAmount: parseFloat(commitment.refund_amount),
+    todayChecked,
+    streakBroken,              // 是否已断签
+    status: commitment.status,
+    isCompleted: commitment.status === 'completed' || streak >= 30,
+    // [NEW] 新增：挑战已结束时的前端纯展示文案
+    checkInMessage: commitment.status === 'completed'
+      ? '🎉 恭喜！本次挑战已完美通关，您的自律值得赞赏！'
+      : (commitment.status === 'failed' ? '连续进度已中断，可在会员有效期内从今日起重新累计。' : '')
+  }
+}
+
 module.exports = {
   getProducts,
   createOrder,
@@ -554,5 +784,7 @@ module.exports = {
   getJsapiParams,
   getOrderStatus,
   handlePaymentSuccess,
-  verifyAndHandleNotification
+  verifyAndHandleNotification,
+  dailyCheckin,
+  getCheckinCommitmentStatus
 }

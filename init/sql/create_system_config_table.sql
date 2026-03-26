@@ -16,3 +16,7 @@ CREATE TABLE IF NOT EXISTS `system_config` (
 INSERT INTO `system_config` (`config_key`, `config_value`, `config_desc`) 
 VALUES ('comment_enabled', '0', '开关：0-关闭，1-开启')
 ON DUPLICATE KEY UPDATE `config_value` = `config_value`;
+
+INSERT INTO `system_config` (`config_key`, `config_value`, `config_desc`) 
+VALUES ('power_enable', '1', 'iOS支付开关：0-关闭（审核时设为0，iOS用户看到不可购买提示），1-开启（正常购买）')
+ON DUPLICATE KEY UPDATE `config_value` = `config_value`;

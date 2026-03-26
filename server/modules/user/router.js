@@ -480,4 +480,16 @@ router.post('/behavior', handle(async (ctx) => {
   return success(result)
 }))
 
+/**
+ * 获取系统功能开关
+ * GET /api/v1/user/system-config
+ */
+router.get('/system-config', handle(async (ctx) => {
+  const { database } = require('../../core')
+  const row = await database.queryOne(
+    "SELECT config_value FROM system_config WHERE config_key = 'power_enable'"
+  )
+  return success({ powerEnable: row ? parseInt(row.config_value) : 0 })
+}))
+
 module.exports = router

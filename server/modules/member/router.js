@@ -98,4 +98,36 @@ router.post('/notification', async (ctx) => {
   console.log('========== 微信支付回调结束 ==========')
 })
 
+/**
+ * 一键打卡
+ * POST /api/v1/member/daily-checkin
+ */
+router.post('/daily-checkin', handle(async (ctx) => {
+  const { openId } = ctx.request.body
+  if (!openId) return ctx.throw(400, '缺少 openId')
+
+  const userModel = require('../user/model')
+  const user = await userModel.findByOpenId(openId)
+  if (!user) return ctx.throw(400, '用户不存在')
+
+  const result = await memberService.dailyCheckin(user.id)
+  return success(result)
+}))
+
+/**
+ * 查询打卡承诺进度（30天返半价）
+ * GET /api/v1/member/checkin-commitment?openId=xxx
+ */
+router.get('/checkin-commitment', handle(async (ctx) => {
+  const { openId } = ctx.query
+  if (!openId) return ctx.throw(400, '缺少 openId')
+
+  const userModel = require('../user/model')
+  const user = await userModel.findByOpenId(openId)
+  if (!user) return ctx.throw(400, '用户不存在')
+
+  const result = await memberService.getCheckinCommitmentStatus(user.id)
+  return success(result)
+}))
+
 module.exports = router
