@@ -38,15 +38,12 @@ async function handleMessage(message) {
     
     // 仅处理用户进入客服会话的事件
     if (MsgType === 'event' && Event === 'user_enter_tempsession') {
-        if (!SessionFrom) return
+        // session-from 不是 JSON（如页面路径）时静默退出，不触发 catch
+        let productId = null
+        try { productId = JSON.parse(SessionFrom || '{}').productId } catch (_) { return }
+        if (!productId) return
 
         try {
-            // 1. 解析参数
-            // session-from 可能是 JSON 字符串
-            const params = JSON.parse(SessionFrom)
-            const { productId } = params
-            
-            if (!productId) return
 
             // 2. 获取用户 ID (通过 OpenID即 FromUserName 查找)
             const user = await database.queryOne('SELECT * FROM users WHERE openid = ?', [FromUserName])
@@ -93,9 +90,6 @@ async function handleMessage(message) {
 
         } catch (err) {
             console.error('Handle Temp Session Error:', err)
-            // 发送错误提示
-            const token = await getAccessToken()
-            await sendTextMessage(token, FromUserName, '系统繁忙，请稍后重试或联系人工客服。')
         }
     }
 }
