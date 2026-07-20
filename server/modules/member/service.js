@@ -623,7 +623,7 @@ async function dailyCheckin(userId) {
 
         // 拉取待退金额、本金和微信原流水号
         const commitmentInfo = await database.queryOne(
-          'SELECT c.order_id, c.refund_amount, o.transaction_id, o.amount FROM checkin_commitments c JOIN member_orders o ON c.order_id = o.order_no WHERE c.id = ?',
+          'SELECT c.order_id, c.refund_amount, o.transaction_id, o.amount FROM checkin_commitments c JOIN member_orders o ON c.order_id = o.id WHERE c.id = ?',
           [status.commitmentId]
         );
 
